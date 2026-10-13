@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: ru-RU
+tone_instructions: "Пиши кратко и понятно. Для каждого замечания объясняй конкретный сценарий ошибки и способ исправления."
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        This is an educational, synthetic booking event simulator.
+        Prioritize correctness, regressions, reproducibility, event contract consistency,
+        duplicate delivery handling, and the distinction between pending and failed bookings.
+        Check that instructor answer keys are not accidentally exposed in student datasets.
+        Respect the documented MVP scope and avoid proposing production infrastructure
+        or new dependencies without a concrete requirement.
+        Report actionable problems with a specific failure scenario.
+        Leave formatting and style enforcement to linters; avoid cosmetic suggestions.
