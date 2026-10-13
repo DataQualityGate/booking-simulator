@@ -16,7 +16,10 @@ Outputs:
 - `build/dataset/events.jsonl`: timestamped service events ordered by observation time
 - `build/dataset/topology.json`: conceptual service dependency topology
 - `build/dataset/manifest.json`: reproducible dataset metadata
+- `build/reference/generation.json`: instructor-only seed and booking count for reproduction
 - `build/reference/truth.jsonl`: **answer key** with known status, cause, and affected services
+
+For student datasets, omit `--seed` to choose a random seed. Explicit seeds (such as 42 above) are intended for development and reproduction. The student manifest has a content-based dataset ID and no seed; trace IDs do not directly encode the seed.
 
 **Share only `build/dataset/` with student teams** for exercises. `reference/` is an instructor artifact. The generator is publicly available; an undisclosed seed by itself is *not* sufficient to secure scored assessments.
 
