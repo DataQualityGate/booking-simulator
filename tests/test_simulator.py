@@ -31,11 +31,18 @@ class SimulatorTests(unittest.TestCase):
             save(b, 42, 25)
             for name in [
                 "dataset/events.jsonl", "dataset/topology.json",
-                "dataset/manifest.json", "reference/truth.jsonl",
+                "dataset/manifest.json", "reference/truth.jsonl", "reference/generation.json",
             ]:
                 self.assertEqual((a / name).read_bytes(), (b / name).read_bytes())
             manifest = json.loads((a / "dataset/manifest.json").read_text())
             self.assertNotIn("truth", manifest)
+            self.assertNotIn("seed", manifest)
+            self.assertNotIn("seed", manifest["dataset_id"])
+            metadata = json.loads((a / "reference/generation.json").read_text())
+            self.assertEqual(metadata["seed"], 42)
+            self.assertEqual(metadata["booking_count"], 25)
+            events = [json.loads(line) for line in (a / "dataset/events.jsonl").read_text().splitlines()]
+            self.assertNotEqual(events[0]["trace_id"], f"{42:08x}{0:024x}")
             self.assertFalse((a / "dataset/truth.jsonl").exists())
 
 if __name__ == "__main__":
