@@ -1,0 +1,130 @@
+"""Generate deterministic synthetic booking events and separated ground truth."""
+import argparse
+import datetime as dt
+import json
+import random
+from pathlib import Path
+
+SCHEMA_VERSION = "1.0"
+BASE = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+SERVICES = ["booking", "payment", "supplier", "notification"]
+TOPOLOGY = {
+    "schema_version": SCHEMA_VERSION,
+    "services": SERVICES,
+    "dependencies": [
+        {"from": "booking", "to": "payment"},
+        {"from": "booking", "to": "supplier"},
+        {"from": "booking", "to": "notification"},
+    ],
+    "business_process": "hotel_booking",
+}
+
+def canonical(obj):
+    return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+def generate(seed: int, count: int):
+    if count < 1:
+        raise ValueError("count must be positive")
+    rng = random.Random(seed)
+    events, ground_truth = [], []
+    for n in range(count):
+        booking = f"BOOK-{n+1:06d}"
+        trace = f"{seed:08x}{n:024x}"
+        outcome = rng.choices(
+            ["success", "payment_failed", "supplier_timeout", "message_delay"],
+            [65, 12, 13, 10],
+        )[0]
+        start = n * 60
+        steps = [("booking", "BookingRequested", 0, 0), ("payment", "PaymentAuthorized", 2, 3)]
+        if outcome == "payment_failed":
+            steps = [
+                ("booking", "BookingRequested", 0, 0),
+                ("payment", "PaymentDeclined", 2, 3),
+                ("booking", "BookingFailed", 4, 5),
+            ]
+            status, root = "failed", "payment"
+        elif outcome == "supplier_timeout":
+            steps += [
+                ("supplier", "ReservationRequested", 4, 5),
+                ("supplier", "SupplierTimeout", 15, 16),
+                ("booking", "BookingPending", 16, 17),
+            ]
+            status, root = "pending", "supplier"
+        elif outcome == "message_delay":
+            steps += [
+                ("supplier", "ReservationRequested", 4, 5),
+                ("supplier", "SupplierConfirmed", 7, 35),
+                ("booking", "BookingConfirmed", 36, 37),
+                ("notification", "NotificationSent", 39, 41),
+            ]
+            status, root = "confirmed", None
+        else:
+            steps += [
+                ("supplier", "ReservationRequested", 4, 5),
+                ("supplier", "SupplierConfirmed", 7, 8),
+                ("booking", "BookingConfirmed", 10, 11),
+                ("notification", "NotificationSent", 12, 13),
+            ]
+            status, root = "confirmed", None
+        for idx, (service, kind, occurred, lag) in enumerate(steps):
+            event = {
+                "schema_version": SCHEMA_VERSION,
+                "event_id": f"{booking}-{idx:02d}",
+                "booking_id": booking,
+                "trace_id": trace,
+                "service": service,
+                "event_type": kind,
+                "occurred_at": (BASE + dt.timedelta(seconds=start + occurred)).isoformat().replace("+00:00", "Z"),
+                "observed_at": (BASE + dt.timedelta(seconds=start + lag)).isoformat().replace("+00:00", "Z"),
+                "attributes": {"synthetic": True, "region": rng.choice(["north", "south", "east"])},
+            }
+            events.append(event)
+            if outcome == "message_delay" and kind == "SupplierConfirmed":
+                duplicate = dict(event)
+                duplicate["observed_at"] = (BASE + dt.timedelta(seconds=start + 38)).isoformat().replace("+00:00", "Z")
+                events.append(duplicate)
+        ground_truth.append({
+            "booking_id": booking,
+            "scenario": outcome,
+            "status": status,
+            "root_cause_service": root,
+            "affected_services": (
+                ["booking"] if root is None else
+                ["payment", "booking"] if root == "payment" else
+                ["supplier", "booking", "notification"]
+            ),
+        })
+    events.sort(key=lambda e: (e["observed_at"], e["event_id"]))
+    return events, ground_truth
+
+def save(output: Path, seed: int, count: int):
+    events, truth = generate(seed, count)
+    dataset, reference = output / "dataset", output / "reference"
+    dataset.mkdir(parents=True, exist_ok=True)
+    reference.mkdir(parents=True, exist_ok=True)
+    (dataset / "events.jsonl").write_text(
+        "".join(canonical(e) + "\n" for e in events), encoding="utf-8"
+    )
+    (dataset / "topology.json").write_text(json.dumps(TOPOLOGY, indent=2) + "\n", encoding="utf-8")
+    (dataset / "manifest.json").write_text(json.dumps({
+        "schema_version": SCHEMA_VERSION,
+        "dataset_id": f"booking-v1-seed-{seed}-count-{count}",
+        "seed": seed,
+        "booking_count": count,
+        "events_path": "events.jsonl",
+        "topology_path": "topology.json",
+    }, indent=2) + "\n", encoding="utf-8")
+    (reference / "truth.jsonl").write_text(
+        "".join(canonical(r) + "\n" for r in truth), encoding="utf-8"
+    )
+    return len(events)
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate synthetic booking telemetry (stdlib only)")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--count", type=int, default=1000)
+    parser.add_argument("--output", type=Path, default=Path("build"))
+    args = parser.parse_args()
+    number = save(args.output, args.seed, args.count)
+    print(f"Generated {args.count} bookings and {number} events in {args.output}")
+    print("Share dataset/; keep reference/ for evaluation.")
