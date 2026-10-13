@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
-language: ru-RU
-tone_instructions: "Пиши кратко и понятно. Для каждого замечания объясняй конкретный сценарий ошибки и способ исправления."
+language: en-US
+tone_instructions: "Write concisely and clearly. For each finding, explain a concrete failure scenario and how to fix it."
 reviews:
   profile: chill
   request_changes_workflow: false
