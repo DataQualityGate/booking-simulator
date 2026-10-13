@@ -2,6 +2,8 @@
 import argparse
 import datetime as dt
 import json
+import hashlib
+import secrets
 import random
 from pathlib import Path
 
@@ -20,16 +22,18 @@ TOPOLOGY = {
 }
 
 def canonical(obj):
+    """Serialize a record consistently for reproducible output."""
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 def generate(seed: int, count: int):
+    """Generate ordered events and instructor answers for a fixed seed."""
     if count < 1:
         raise ValueError("count must be positive")
     rng = random.Random(seed)
     events, ground_truth = [], []
     for n in range(count):
         booking = f"BOOK-{n+1:06d}"
-        trace = f"{seed:08x}{n:024x}"
+        trace = hashlib.sha256(f"trace:{seed}:{n}".encode()).hexdigest()[:32]
         outcome = rng.choices(
             ["success", "payment_failed", "supplier_timeout", "message_delay"],
             [65, 12, 13, 10],
@@ -98,6 +102,7 @@ def generate(seed: int, count: int):
     return events, ground_truth
 
 def save(output: Path, seed: int, count: int):
+    """Save student inputs separately from answers and reproduction metadata."""
     events, truth = generate(seed, count)
     dataset, reference = output / "dataset", output / "reference"
     dataset.mkdir(parents=True, exist_ok=True)
@@ -108,8 +113,9 @@ def save(output: Path, seed: int, count: int):
     (dataset / "topology.json").write_text(json.dumps(TOPOLOGY, indent=2) + "\n", encoding="utf-8")
     (dataset / "manifest.json").write_text(json.dumps({
         "schema_version": SCHEMA_VERSION,
-        "dataset_id": f"booking-v1-seed-{seed}-count-{count}",
-        "seed": seed,
+        "dataset_id": "booking-v1-" + hashlib.sha256(
+            "".join(canonical(e) + "\n" for e in events).encode("utf-8")
+        ).hexdigest()[:16],
         "booking_count": count,
         "events_path": "events.jsonl",
         "topology_path": "topology.json",
@@ -117,14 +123,22 @@ def save(output: Path, seed: int, count: int):
     (reference / "truth.jsonl").write_text(
         "".join(canonical(r) + "\n" for r in truth), encoding="utf-8"
     )
+    (reference / "generation.json").write_text(json.dumps({
+        "schema_version": SCHEMA_VERSION,
+        "seed": seed,
+        "booking_count": count,
+    }, indent=2) + "\n", encoding="utf-8")
     return len(events)
 
 def main():
+    """Generate a dataset, choosing a random seed unless one is supplied."""
     parser = argparse.ArgumentParser(description="Generate synthetic booking telemetry (stdlib only)")
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed", type=int, default=None,
+                        help="Reproduction seed; omitted selects a random seed")
     parser.add_argument("--count", type=int, default=1000)
     parser.add_argument("--output", type=Path, default=Path("build"))
     args = parser.parse_args()
-    number = save(args.output, args.seed, args.count)
+    seed = args.seed if args.seed is not None else secrets.randbits(128)
+    number = save(args.output, seed, args.count)
     print(f"Generated {args.count} bookings and {number} events in {args.output}")
     print("Share dataset/; keep reference/ for evaluation.")
