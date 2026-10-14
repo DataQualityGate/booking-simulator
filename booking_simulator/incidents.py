@@ -83,8 +83,11 @@ def _index(rows, name):
     return indexed
 
 
-def _labels(row, universe):
-    for field in ("affected_services", "possibly_affected_services"):
+def _labels(row, universe, *, reference=False):
+    fields = ("affected_services", "possibly_affected_services")
+    if reference:
+        fields += ("unaffected_services",)
+    for field in fields:
         values = row[field]
         if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
             raise ValueError(f"{field} must be a list of service names")
@@ -94,6 +97,10 @@ def _labels(row, universe):
     possible = set(row["possibly_affected_services"])
     if affected & possible or (affected | possible) - universe:
         raise ValueError("Impact sets must be disjoint and contain only known services")
+    if reference:
+        unaffected = set(row["unaffected_services"])
+        if unaffected & (affected | possible) or affected | possible | unaffected != universe:
+            raise ValueError("Reference impact sets must partition all known services")
     return {service: "affected" if service in affected else
             "possible" if service in possible else "unaffected" for service in universe}
 
@@ -113,8 +120,8 @@ def evaluate(predictions, truth):
     confusion = {actual: {predicted: 0 for predicted in ("affected", "possible", "unaffected")}
                  for actual in ("affected", "possible", "unaffected")}
     for case_id, answer in expected.items():
-        universe = set(answer["affected_services"] + answer["possibly_affected_services"] + answer["unaffected_services"])
-        actual = _labels(answer, universe)
+        universe = set(SERVICES)
+        actual = _labels(answer, universe, reference=True)
         predicted = _labels(submitted.get(case_id, {"affected_services": [], "possibly_affected_services": []}), universe)
         for service in universe:
             confusion[actual[service]][predicted[service]] += 1

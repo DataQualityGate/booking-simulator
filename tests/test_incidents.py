@@ -80,6 +80,24 @@ class IncidentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             evaluate([], [])
 
+    def test_invalid_reference_partitions(self):
+        _, truth = exercises()
+        for field, value in [
+            ('unaffected_services', []),
+            ('unaffected_services', ['supplier', 'analytics', 'payment']),
+            ('unaffected_services', ['supplier', 'analytics', 'ghost']),
+            ('unaffected_services', ['supplier', 'supplier', 'analytics']),
+            ('unaffected_services', 'supplier'),
+        ]:
+            broken = copy.deepcopy(truth)
+            broken[0][field] = value
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                evaluate([], broken)
+        incomplete = [{'case_id': 'one-service', 'affected_services': ['payment'],
+                       'possibly_affected_services': [], 'unaffected_services': []}]
+        with self.assertRaises(ValueError):
+            evaluate(incomplete, incomplete)
+
     def test_export_reproducibility_separation_and_cli(self):
         with tempfile.TemporaryDirectory() as root:
             a, b = Path(root) / 'a', Path(root) / 'b'
@@ -98,7 +116,12 @@ class IncidentTests(unittest.TestCase):
                                      '--predictions', str(truth_file), '--truth', str(truth_file)],
                                     capture_output=True, text=True, check=True)
             self.assertEqual(json.loads(result.stdout)['correct'], 36)
+            metadata = json.loads((a / 'reference/generation.json').read_text())
+            self.assertTrue(metadata['incidents'])
+            self.assertEqual(metadata['incident_suite_version'], '1.0')
             save(a, 42, 5)
+            plain = json.loads((a / 'dataset/manifest.json').read_text())
+            self.assertNotEqual(manifest['dataset_id'], plain['dataset_id'])
             self.assertFalse((a / 'dataset/incidents.jsonl').exists())
             self.assertFalse(truth_file.exists())
             self.assertNotIn('incidents_path', json.loads((a / 'dataset/manifest.json').read_text()))

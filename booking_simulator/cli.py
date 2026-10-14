@@ -104,6 +104,16 @@ def generate(seed: int, count: int):
 def save(output: Path, seed: int, count: int, *, incidents: bool = False):
     """Save student inputs separately from answers and reproduction metadata."""
     events, truth = generate(seed, count)
+    incident_metadata = {}
+    identity_suffix = ""
+    if incidents:
+        from .incidents import VERSION, TOPOLOGY as IMPACT_TOPOLOGY, exercises, save_exercises
+        cases, _ = exercises()
+        identity_suffix = canonical({"suite_version": VERSION, "cases": cases,
+                                     "topology": IMPACT_TOPOLOGY})
+        incident_metadata = {"incident_suite_version": VERSION,
+                             "incidents_path": "incidents.jsonl",
+                             "impact_topology_path": "impact-topology.json"}
     dataset, reference = output / "dataset", output / "reference"
     dataset.mkdir(parents=True, exist_ok=True)
     reference.mkdir(parents=True, exist_ok=True)
@@ -114,13 +124,12 @@ def save(output: Path, seed: int, count: int, *, incidents: bool = False):
     (dataset / "manifest.json").write_text(json.dumps({
         "schema_version": SCHEMA_VERSION,
         "dataset_id": "booking-v1-" + hashlib.sha256(
-            "".join(canonical(e) + "\n" for e in events).encode("utf-8")
+            ("".join(canonical(e) + "\n" for e in events) + identity_suffix).encode("utf-8")
         ).hexdigest()[:16],
         "booking_count": count,
         "events_path": "events.jsonl",
         "topology_path": "topology.json",
-        **({"incident_suite_version": "1.0", "incidents_path": "incidents.jsonl",
-            "impact_topology_path": "impact-topology.json"} if incidents else {}),
+        **incident_metadata,
     }, indent=2) + "\n", encoding="utf-8")
     (reference / "truth.jsonl").write_text(
         "".join(canonical(r) + "\n" for r in truth), encoding="utf-8"
@@ -129,9 +138,10 @@ def save(output: Path, seed: int, count: int, *, incidents: bool = False):
         "schema_version": SCHEMA_VERSION,
         "seed": seed,
         "booking_count": count,
+        "incidents": incidents,
+        **({"incident_suite_version": incident_metadata["incident_suite_version"]} if incidents else {}),
     }, indent=2) + "\n", encoding="utf-8")
     if incidents:
-        from .incidents import save_exercises
         save_exercises(dataset, reference)
     else:
         for path in (dataset / "incidents.jsonl", dataset / "impact-topology.json",

@@ -14,6 +14,7 @@ Student inputs:
 - `dataset/manifest.json`: includes paths and incident suite version when enabled.
 
 Instructor output: `reference/impact-truth.jsonl`. Share only `dataset/`.
+The dataset ID includes the optional suite content and topology. Instructor generation metadata records whether the suite was enabled and its version.
 Regenerating the same output directory without `--incidents` removes the three optional suite files.
 
 ## Classification semantics
@@ -47,7 +48,7 @@ One JSON object per case (JSONL), for example:
 {"case_id":"notification-outage","affected_services":["notification"],"possibly_affected_services":[]}
 ```
 
-Omitted services are predictions of `unaffected`; omitted cases predict all services unaffected and still count in the denominator. Unknown cases/services, duplicate cases/service entries and overlapping sets are rejected. No inference algorithm is supplied: students build their own analysis.
+Omitted services are predictions of `unaffected`; omitted cases predict all services unaffected and still count in the denominator. Unknown cases/services, duplicate cases/service entries and overlapping sets are rejected. Reference files must partition all six services into three disjoint lists; incomplete or overlapping reference partitions are rejected. No inference algorithm is supplied: students build their own analysis.
 
 The evaluator reports a confusion matrix (actual labels as rows, predictions as columns), exact correct/total classifications, and:
 
