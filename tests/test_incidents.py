@@ -12,6 +12,7 @@ from booking_simulator.incidents import SERVICES, TOPOLOGY, evaluate, exercises
 
 class IncidentTests(unittest.TestCase):
     def test_reference_partitions_and_topology(self):
+        """Require complete reference partitions and valid contract dependencies."""
         cases, answers = exercises()
         self.assertEqual(len(cases), 6)
         self.assertEqual({c['kind'] for c in cases}, {'service_failure', 'api_change', 'schema_change'})
@@ -25,6 +26,7 @@ class IncidentTests(unittest.TestCase):
         self.assertEqual({e['mode'] for e in TOPOLOGY['dependencies']}, {'required', 'optional', 'unknown'})
 
     def test_explicit_scenarios(self):
+        """Pin the distinct blast radius of outages and contract changes."""
         _, answers = exercises()
         answers = {a['case_id']: a for a in answers}
         self.assertEqual(answers['notification-outage']['affected_services'], ['notification'])
@@ -36,6 +38,7 @@ class IncidentTests(unittest.TestCase):
         self.assertNotIn('payment', answers['payment-api-break']['affected_services'])
 
     def test_exact_scoring_and_missing_cases(self):
+        """Score all services even when a submission omits cases."""
         _, truth = exercises()
         result = evaluate(truth, truth)
         self.assertEqual((result['correct'], result['total']), (36, 36))
@@ -46,6 +49,7 @@ class IncidentTests(unittest.TestCase):
         self.assertLess(empty['correct'], empty['total'])
 
     def test_false_positives_and_uncertainty(self):
+        """Distinguish speculative impact from confidence classification errors."""
         _, truth = exercises()
         predictions = copy.deepcopy(truth)
         outage = predictions[0]
@@ -62,6 +66,7 @@ class IncidentTests(unittest.TestCase):
         self.assertEqual(result['correct'], 32)
 
     def test_invalid_submissions(self):
+        """Reject ambiguous, duplicate and unknown prediction labels."""
         _, truth = exercises()
         bad_rows = [
             [truth[0], truth[0]],
@@ -81,6 +86,7 @@ class IncidentTests(unittest.TestCase):
             evaluate([], [])
 
     def test_invalid_reference_partitions(self):
+        """Reject corrupt answer keys rather than inflating student scores."""
         _, truth = exercises()
         for field, value in [
             ('unaffected_services', []),
@@ -99,6 +105,7 @@ class IncidentTests(unittest.TestCase):
             evaluate(incomplete, incomplete)
 
     def test_export_reproducibility_separation_and_cli(self):
+        """Verify repeatable exports, answer isolation, CLI scoring and cleanup."""
         with tempfile.TemporaryDirectory() as root:
             a, b = Path(root) / 'a', Path(root) / 'b'
             save(a, 42, 5, incidents=True)

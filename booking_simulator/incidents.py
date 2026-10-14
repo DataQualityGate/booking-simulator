@@ -74,6 +74,7 @@ def save_exercises(dataset, reference):
 
 
 def _index(rows, name):
+    """Index unique case IDs, rejecting duplicate submission or reference rows."""
     indexed = {}
     for row in rows:
         case_id = row["case_id"]
@@ -84,6 +85,7 @@ def _index(rows, name):
 
 
 def _labels(row, universe, *, reference=False):
+    """Validate impact sets and assign one label per known service."""
     fields = ("affected_services", "possibly_affected_services")
     if reference:
         fields += ("unaffected_services",)
