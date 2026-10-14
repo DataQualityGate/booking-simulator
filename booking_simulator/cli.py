@@ -101,7 +101,7 @@ def generate(seed: int, count: int):
     events.sort(key=lambda e: (e["observed_at"], e["event_id"]))
     return events, ground_truth
 
-def save(output: Path, seed: int, count: int):
+def save(output: Path, seed: int, count: int, *, incidents: bool = False):
     """Save student inputs separately from answers and reproduction metadata."""
     events, truth = generate(seed, count)
     dataset, reference = output / "dataset", output / "reference"
@@ -119,6 +119,8 @@ def save(output: Path, seed: int, count: int):
         "booking_count": count,
         "events_path": "events.jsonl",
         "topology_path": "topology.json",
+        **({"incident_suite_version": "1.0", "incidents_path": "incidents.jsonl",
+            "impact_topology_path": "impact-topology.json"} if incidents else {}),
     }, indent=2) + "\n", encoding="utf-8")
     (reference / "truth.jsonl").write_text(
         "".join(canonical(r) + "\n" for r in truth), encoding="utf-8"
@@ -128,6 +130,13 @@ def save(output: Path, seed: int, count: int):
         "seed": seed,
         "booking_count": count,
     }, indent=2) + "\n", encoding="utf-8")
+    if incidents:
+        from .incidents import save_exercises
+        save_exercises(dataset, reference)
+    else:
+        for path in (dataset / "incidents.jsonl", dataset / "impact-topology.json",
+                     reference / "impact-truth.jsonl"):
+            path.unlink(missing_ok=True)
     return len(events)
 
 def main():
@@ -137,8 +146,9 @@ def main():
                         help="Reproduction seed; omitted selects a random seed")
     parser.add_argument("--count", type=int, default=1000)
     parser.add_argument("--output", type=Path, default=Path("build"))
+    parser.add_argument("--incidents", action="store_true", help="Include independent incident and impact exercises")
     args = parser.parse_args()
     seed = args.seed if args.seed is not None else secrets.randbits(128)
-    number = save(args.output, seed, args.count)
+    number = save(args.output, seed, args.count, incidents=args.incidents)
     print(f"Generated {args.count} bookings and {number} events in {args.output}")
     print("Share dataset/; keep reference/ for evaluation.")
