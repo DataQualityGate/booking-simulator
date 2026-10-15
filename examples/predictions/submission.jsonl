@@ -1,0 +1,3 @@
+{"schema_version":"1.0","booking_id":"BOOK-000001","status":"confirmed","root_cause_service":null,"affected_services":["booking"]}
+{"schema_version":"1.0","booking_id":"BOOK-000002","status":"failed","root_cause_service":"payment","affected_services":["payment","booking"]}
+{"schema_version":"1.0","booking_id":"BOOK-000003","status":"pending","root_cause_service":"supplier","affected_services":["supplier","booking","notification"]}

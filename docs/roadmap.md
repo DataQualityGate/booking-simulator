@@ -3,7 +3,7 @@
 MVP completed: deterministic booking event generation, four scenarios, topology, separated ground truth, tests and basic GitHub CI.
 
 ## Next
-1. Formalize a public input and prediction output contract.
+1. Public booking prediction contract v1.0 and local format validator implemented (Issue #2).
 2. Add data quality mutations: missing identifiers, out-of-order ingestion, malformed events.
 3. Add configurable incident scenarios and their reference outcomes.
 4. Provide a local evaluation adapter consuming prediction JSONL.

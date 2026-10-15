@@ -17,3 +17,5 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Smoke test dataset generation
         run: python -m booking_simulator --seed 42 --count 1000 --incidents --output build
+      - name: Validate public prediction fixture
+        run: python -m booking_simulator.predictions --predictions examples/predictions/submission.jsonl --events examples/predictions/events.jsonl

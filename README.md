@@ -35,7 +35,7 @@ JSONL records contain `schema_version`, `event_id`, `booking_id`, `trace_id`, `s
 
 ## Student task
 
-Ingest events, deduplicate, reconstruct booking states, identify pending/failed operations, infer likely causes and impacted services, and submit an implementation as a PR. Evaluation tooling will be developed independently.
+Ingest events, deduplicate, reconstruct booking states, identify pending/failed operations, infer likely causes and impacted services, and submit an implementation as a PR. Booking submissions follow the [public prediction contract](docs/prediction-contract.md). Local format validation is available now; grading is developed independently in `engineering-evals`.
 
 ## Non-goals
 
@@ -54,3 +54,14 @@ errors. See [the exercise contract and scoring guide](docs/incident-impact.md).
 python -m booking_simulator --seed 42 --count 1000 --incidents --output build
 python -m booking_simulator.incidents --predictions submission.jsonl --truth build/reference/impact-truth.jsonl
 ```
+
+## Validate booking predictions
+
+```bash
+python -m booking_simulator.predictions --predictions examples/predictions/submission.jsonl --events examples/predictions/events.jsonl
+```
+
+Use your generated `dataset/events.jsonl` with your own submission to check exact
+booking coverage. The command checks JSONL format and IDs without reading answer
+keys or grading the result. See the [versioned contract](docs/prediction-contract.md)
+and [record schema](schemas/booking-prediction-v1.schema.json).
