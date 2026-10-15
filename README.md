@@ -65,3 +65,10 @@ Use your generated `dataset/events.jsonl` with your own submission to check exac
 booking coverage. The command checks JSONL format and IDs without reading answer
 keys or grading the result. See the [versioned contract](docs/prediction-contract.md)
 and [record schema](schemas/booking-prediction-v1.schema.json).
+
+## Local evaluator handoff
+
+The [evaluation adapter](docs/evaluation-adapter.md) exports a versioned,
+instructor-only request for `engineering-evals`. It validates and joins booking
+predictions with separate references without executing student code or grading.
+A complete public fixture and smoke command are included.

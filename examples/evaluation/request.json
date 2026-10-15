@@ -1,0 +1,75 @@
+{
+  "contract_version": "1.0",
+  "dataset": {
+    "booking_count": 3,
+    "dataset_id": "booking-public-fixture-v1",
+    "schema_version": "1.0"
+  },
+  "input_sha256": {
+    "events": "23b5ecde52c2d7b3976924b7b8d48c6913c37c38a475fae75d32b234bb2cfdbb",
+    "manifest": "31694549c739d9e712d2127575f62b1b48f58e84082a863ffb8fdc41d27e39e0",
+    "predictions": "4a5129e5b5b6384524c94a46ec192fbdb5a4442edd2b52f0b548a3bb7bfe146e",
+    "truth": "e0afc45cd3fd424fdf8c80034862a0e6082429d8cd3b83af91cf3761d42a0e94"
+  },
+  "prediction_schema_version": "1.0",
+  "records": [
+    {
+      "booking_id": "BOOK-000001",
+      "expected": {
+        "affected_services": [
+          "booking"
+        ],
+        "root_cause_service": null,
+        "status": "confirmed"
+      },
+      "prediction": {
+        "affected_services": [
+          "booking"
+        ],
+        "root_cause_service": null,
+        "status": "confirmed"
+      }
+    },
+    {
+      "booking_id": "BOOK-000002",
+      "expected": {
+        "affected_services": [
+          "booking",
+          "payment"
+        ],
+        "root_cause_service": "payment",
+        "status": "failed"
+      },
+      "prediction": {
+        "affected_services": [
+          "booking",
+          "payment"
+        ],
+        "root_cause_service": "payment",
+        "status": "failed"
+      }
+    },
+    {
+      "booking_id": "BOOK-000003",
+      "expected": {
+        "affected_services": [
+          "booking",
+          "notification",
+          "supplier"
+        ],
+        "root_cause_service": "supplier",
+        "status": "pending"
+      },
+      "prediction": {
+        "affected_services": [
+          "booking",
+          "notification",
+          "supplier"
+        ],
+        "root_cause_service": "supplier",
+        "status": "pending"
+      }
+    }
+  ],
+  "task": "booking_predictions"
+}

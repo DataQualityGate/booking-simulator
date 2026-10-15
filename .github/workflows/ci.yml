@@ -19,3 +19,5 @@ jobs:
         run: python -m booking_simulator --seed 42 --count 1000 --incidents --output build
       - name: Validate public prediction fixture
         run: python -m booking_simulator.predictions --predictions examples/predictions/submission.jsonl --events examples/predictions/events.jsonl
+      - name: Smoke test public evaluation handoff
+        run: python -m booking_simulator.evaluation_adapter --dataset examples/evaluation/dataset --reference examples/evaluation/reference --predictions examples/predictions/submission.jsonl --output build/public-evaluation-request.json
