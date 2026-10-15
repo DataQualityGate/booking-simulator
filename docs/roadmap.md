@@ -1,18 +1,30 @@
 # Roadmap
 
-MVP completed: deterministic booking event generation, four scenarios, topology, separated ground truth, tests and basic GitHub CI.
+## Implemented
 
-## Next
-1. Public booking prediction contract v1.0 and local format validator implemented (Issue #2).
-2. Add data quality mutations: missing identifiers, out-of-order ingestion, malformed events.
-3. Add configurable incident scenarios and their reference outcomes.
-4. Provide a local evaluation adapter consuming prediction JSONL.
-5. Add optional HTTP/event-stream transport without requiring a cloud environment.
+- Deterministic synthetic booking events: success, declined payment, supplier
+  timeout, delayed/duplicate delivery, topology and separated instructor truth.
+- Public booking prediction contract v1.0, JSON Schema and local validation
+  without answer keys (Issue #2).
+- Opt-in deterministic data-quality faults with reproducible per-delivery
+  reference mutations and byte-compatible defaults (Issue #3).
+- Six independent service/API/schema incident exercises, dependency semantics
+  and explicit affected/possible/unaffected classifications (Issue #4).
+- Versioned local instructor handoff for engineering-evals, public fixtures and
+  smoke test; downstream scoring remains separate (Issue #5).
+- Student assignment, fork/PR workflow, executable quickstart and sandbox/hidden
+  assessment trust boundaries (Issue #6).
+- Standard-library automated tests and public GitHub CI with read-only token
+  permissions and no persisted checkout credentials.
 
-## Later
-- Event schemas and versioning
-- OpenTelemetry and infrastructure-free local observability integration
-- Multiple business processes and richer impact graphs
-- Student onboarding and reproducible grading protocol
+## Potential next extensions
 
-Avoid coupling the simulator to a specific AI framework, LLM provider, ETG platform, or grading vendor.
+- Optional HTTP/event-stream transport without a cloud dependency.
+- Additional versioned event schemas, business processes and impact graphs.
+- OpenTelemetry and local observability integration.
+- A separately implemented isolation runtime and trusted grading service;
+  onboarding documents their required boundaries but does not provision them.
+
+Avoid coupling the simulator to a specific AI framework, LLM provider, ETG
+platform or grading vendor. Public scenarios and seeds are practice material,
+not a hidden benchmark security mechanism.

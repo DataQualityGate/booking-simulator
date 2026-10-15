@@ -2,6 +2,11 @@
 
 A **fully synthetic, deterministic** educational dataset generator for distributed hotel-booking observability and impact analysis. No ETG services, private data, keys, external APIs, or third-party Python dependencies.
 
+## Bootcamp
+
+Start with the [student assignment and fork/PR guide](docs/student-guide.md).
+Instructors should read the [sandbox and hidden-evaluation boundaries](docs/sandbox-security.md).
+
 ## Quickstart
 
 Requires Python 3.10+.
