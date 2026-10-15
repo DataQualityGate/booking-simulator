@@ -65,3 +65,9 @@ Use your generated `dataset/events.jsonl` with your own submission to check exac
 booking coverage. The command checks JSONL format and IDs without reading answer
 keys or grading the result. See the [versioned contract](docs/prediction-contract.md)
 and [record schema](schemas/booking-prediction-v1.schema.json).
+
+## Inject data-quality faults
+
+Use `--missing-correlation-rate 0.1 --late-delivery-rate 0.2
+--malformed-envelope-rate 0.05` to opt into deterministic telemetry corruption.
+Default output is unchanged. See [fault options and instructor ground truth](docs/data-quality-faults.md).
