@@ -24,7 +24,10 @@ class OnboardingTests(unittest.TestCase):
                 args[0] = sys.executable
                 if '--output' in args:
                     args[args.index('--output') + 1] = root
-                result = subprocess.run(args, cwd=ROOT, capture_output=True, text=True)
+                try:
+                    result = subprocess.run(args, cwd=ROOT, capture_output=True, text=True, timeout=30)
+                except subprocess.TimeoutExpired:
+                    self.fail(f"Documented command timed out: {shlex.join(args)}")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 if '--predictions' in args:
                     report = json.loads(result.stdout)
@@ -45,13 +48,36 @@ class OnboardingTests(unittest.TestCase):
                 with self.subTest(document=name, target=target):
                     self.assertTrue((path.parent / target.split('#')[0]).exists())
 
+    def assert_checkout_credentials_disabled(self, workflow):
+        """Require explicit credential disabling within every checkout step."""
+        steps = re.split(r"(?m)^[ \t]+- ", workflow)[1:]
+        pattern = r"(?m)^\s*uses:\s*['\"]?actions/checkout@"
+        checkouts = [step for step in steps if re.search(pattern, step)]
+        checkout_lines = re.findall(r"(?m)^\s*(?:- )?uses:\s*['\"]?actions/checkout@", workflow)
+        self.assertGreater(len(checkouts), 0)
+        self.assertEqual(len(checkouts), len(checkout_lines))
+        for step in checkouts:
+            self.assertRegex(step, r"(?m)^\s+with:\s*$")
+            self.assertRegex(step, r"(?m)^\s+persist-credentials:[ \t]*false[ \t]*$")
+
+    def test_every_checkout_requires_explicit_credential_setting(self):
+        """A safe first checkout must not conceal a later unsafe checkout."""
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        self.assert_checkout_credentials_disabled(workflow)
+        for setting in ('', '        with:\n          persist-credentials: true\n'):
+            second = workflow + '      - name: Second checkout\n        uses: actions/checkout@v4\n' + setting
+            with self.assertRaises(AssertionError):
+                self.assert_checkout_credentials_disabled(second)
+        safe_second = workflow + '      - name: Second checkout\n        uses: actions/checkout@v4\n        with:\n          persist-credentials: false\n'
+        self.assert_checkout_credentials_disabled(safe_second)
+
     def test_public_ci_has_no_privileged_execution(self):
         """Guard the specific public workflow against credential/privilege regressions."""
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         self.assertNotIn('pull_request_target', workflow)
         self.assertNotIn('secrets.', workflow)
         self.assertNotIn('self-hosted', workflow)
-        self.assertIn('persist-credentials: false', workflow)
+        self.assert_checkout_credentials_disabled(workflow)
         self.assertIn('timeout-minutes: 5', workflow)
         permissions = re.search(r'^permissions:\n((?:[ \t]+.*\n)+)', workflow, re.MULTILINE).group(1)
         self.assertEqual(permissions.strip(), 'contents: read')
