@@ -28,7 +28,10 @@ def _constant(value):
 
 def _parse(line):
     """Read strict JSON with unique object keys."""
-    return json.loads(line, object_pairs_hook=_object, parse_constant=_constant)
+    try:
+        return json.loads(line, object_pairs_hook=_object, parse_constant=_constant)
+    except RecursionError as error:
+        raise ValueError("JSON nesting exceeds the parser limit") from error
 
 
 def _row_errors(row):

@@ -78,6 +78,28 @@ class PredictionTests(unittest.TestCase):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 booking_ids_from_events(text)
 
+    def test_excessive_json_nesting(self):
+        """Convert parser recursion failures to documented diagnostics and exit codes."""
+        depth = max(10000, sys.getrecursionlimit() + 100)
+        nested = '[' * depth + '0' + ']' * depth
+        report = validate_predictions(nested)
+        self.assertEqual(report['errors'][0]['code'], 'invalid_json')
+        self.assertFalse(report['valid'])
+        with self.assertRaisesRegex(ValueError, 'nesting'):
+            booking_ids_from_events(nested)
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'nested.jsonl'
+            path.write_text(nested, encoding='utf-8')
+            command = [sys.executable, '-m', 'booking_simulator.predictions',
+                       '--predictions', str(path)]
+            invalid = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(invalid.returncode, 1)
+            self.assertEqual(json.loads(invalid.stdout)['errors'][0]['code'], 'invalid_json')
+            bad_events = subprocess.run(command + ['--events', str(path)], capture_output=True, text=True)
+            self.assertEqual(bad_events.returncode, 2)
+            self.assertIn('nesting', bad_events.stderr)
+            self.assertNotIn('Traceback', bad_events.stderr)
+
     def test_schema_and_validator_vocabulary(self):
         """Keep the published schema aligned with the dependency-free validator."""
         schema = json.loads((ROOT / 'schemas/booking-prediction-v1.schema.json').read_text())
