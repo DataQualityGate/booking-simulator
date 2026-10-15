@@ -40,3 +40,17 @@ Ingest events, deduplicate, reconstruct booking states, identify pending/failed 
 ## Non-goals
 
 Live Kafka, production services, payment processing, OpenTelemetry collector, UI, external AI APIs, ETG integrations.
+
+## Incident modeling and Impact Analysis
+
+Add `--incidents` to generate six independent exercises covering payment,
+supplier and notification outages, a removed API, and breaking/compatible event
+schema changes. Includes a contract dependency graph, observable signals and
+separate instructor classifications for affected, possibly affected and
+unaffected services. A stdlib evaluator counts false positives and uncertainty
+errors. See [the exercise contract and scoring guide](docs/incident-impact.md).
+
+```bash
+python -m booking_simulator --seed 42 --count 1000 --incidents --output build
+python -m booking_simulator.incidents --predictions submission.jsonl --truth build/reference/impact-truth.jsonl
+```

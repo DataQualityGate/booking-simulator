@@ -101,9 +101,19 @@ def generate(seed: int, count: int):
     events.sort(key=lambda e: (e["observed_at"], e["event_id"]))
     return events, ground_truth
 
-def save(output: Path, seed: int, count: int):
+def save(output: Path, seed: int, count: int, *, incidents: bool = False):
     """Save student inputs separately from answers and reproduction metadata."""
     events, truth = generate(seed, count)
+    incident_metadata = {}
+    identity_suffix = ""
+    if incidents:
+        from .incidents import VERSION, TOPOLOGY as IMPACT_TOPOLOGY, exercises, save_exercises
+        cases, _ = exercises()
+        identity_suffix = canonical({"suite_version": VERSION, "cases": cases,
+                                     "topology": IMPACT_TOPOLOGY})
+        incident_metadata = {"incident_suite_version": VERSION,
+                             "incidents_path": "incidents.jsonl",
+                             "impact_topology_path": "impact-topology.json"}
     dataset, reference = output / "dataset", output / "reference"
     dataset.mkdir(parents=True, exist_ok=True)
     reference.mkdir(parents=True, exist_ok=True)
@@ -114,11 +124,12 @@ def save(output: Path, seed: int, count: int):
     (dataset / "manifest.json").write_text(json.dumps({
         "schema_version": SCHEMA_VERSION,
         "dataset_id": "booking-v1-" + hashlib.sha256(
-            "".join(canonical(e) + "\n" for e in events).encode("utf-8")
+            ("".join(canonical(e) + "\n" for e in events) + identity_suffix).encode("utf-8")
         ).hexdigest()[:16],
         "booking_count": count,
         "events_path": "events.jsonl",
         "topology_path": "topology.json",
+        **incident_metadata,
     }, indent=2) + "\n", encoding="utf-8")
     (reference / "truth.jsonl").write_text(
         "".join(canonical(r) + "\n" for r in truth), encoding="utf-8"
@@ -127,7 +138,15 @@ def save(output: Path, seed: int, count: int):
         "schema_version": SCHEMA_VERSION,
         "seed": seed,
         "booking_count": count,
+        "incidents": incidents,
+        **({"incident_suite_version": incident_metadata["incident_suite_version"]} if incidents else {}),
     }, indent=2) + "\n", encoding="utf-8")
+    if incidents:
+        save_exercises(dataset, reference)
+    else:
+        for path in (dataset / "incidents.jsonl", dataset / "impact-topology.json",
+                     reference / "impact-truth.jsonl"):
+            path.unlink(missing_ok=True)
     return len(events)
 
 def main():
@@ -137,8 +156,9 @@ def main():
                         help="Reproduction seed; omitted selects a random seed")
     parser.add_argument("--count", type=int, default=1000)
     parser.add_argument("--output", type=Path, default=Path("build"))
+    parser.add_argument("--incidents", action="store_true", help="Include independent incident and impact exercises")
     args = parser.parse_args()
     seed = args.seed if args.seed is not None else secrets.randbits(128)
-    number = save(args.output, seed, args.count)
+    number = save(args.output, seed, args.count, incidents=args.incidents)
     print(f"Generated {args.count} bookings and {number} events in {args.output}")
     print("Share dataset/; keep reference/ for evaluation.")
