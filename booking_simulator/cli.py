@@ -101,9 +101,14 @@ def generate(seed: int, count: int):
     events.sort(key=lambda e: (e["observed_at"], e["event_id"]))
     return events, ground_truth
 
-def save(output: Path, seed: int, count: int, *, incidents: bool = False):
+def save(output: Path, seed: int, count: int, *, incidents: bool = False, fault_rates=None, late_seconds=120):
     """Save student inputs separately from answers and reproduction metadata."""
+    from .faults import configuration, inject
+    fault_config = configuration(fault_rates, late_seconds)
     events, truth = generate(seed, count)
+    mutations = []
+    if fault_config:
+        events, mutations = inject(events, seed, fault_config)
     incident_metadata = {}
     identity_suffix = ""
     if incidents:
@@ -114,6 +119,8 @@ def save(output: Path, seed: int, count: int, *, incidents: bool = False):
         incident_metadata = {"incident_suite_version": VERSION,
                              "incidents_path": "incidents.jsonl",
                              "impact_topology_path": "impact-topology.json"}
+    if fault_config:
+        identity_suffix += canonical(fault_config)
     dataset, reference = output / "dataset", output / "reference"
     dataset.mkdir(parents=True, exist_ok=True)
     reference.mkdir(parents=True, exist_ok=True)
@@ -130,6 +137,7 @@ def save(output: Path, seed: int, count: int, *, incidents: bool = False):
         "events_path": "events.jsonl",
         "topology_path": "topology.json",
         **incident_metadata,
+        **({"data_quality": fault_config} if fault_config else {}),
     }, indent=2) + "\n", encoding="utf-8")
     (reference / "truth.jsonl").write_text(
         "".join(canonical(r) + "\n" for r in truth), encoding="utf-8"
@@ -139,8 +147,14 @@ def save(output: Path, seed: int, count: int, *, incidents: bool = False):
         "seed": seed,
         "booking_count": count,
         "incidents": incidents,
+        **({"data_quality": fault_config} if fault_config else {}),
         **({"incident_suite_version": incident_metadata["incident_suite_version"]} if incidents else {}),
     }, indent=2) + "\n", encoding="utf-8")
+    fault_truth = reference / "data-quality-truth.jsonl"
+    if fault_config:
+        fault_truth.write_text("".join(canonical(row) + "\n" for row in mutations), encoding="utf-8")
+    else:
+        fault_truth.unlink(missing_ok=True)
     if incidents:
         save_exercises(dataset, reference)
     else:
@@ -157,8 +171,19 @@ def main():
     parser.add_argument("--count", type=int, default=1000)
     parser.add_argument("--output", type=Path, default=Path("build"))
     parser.add_argument("--incidents", action="store_true", help="Include independent incident and impact exercises")
+    parser.add_argument("--missing-correlation-rate", type=float, default=0)
+    parser.add_argument("--late-delivery-rate", type=float, default=0)
+    parser.add_argument("--malformed-envelope-rate", type=float, default=0)
+    parser.add_argument("--late-seconds", type=int, default=120)
     args = parser.parse_args()
     seed = args.seed if args.seed is not None else secrets.randbits(128)
-    number = save(args.output, seed, args.count, incidents=args.incidents)
+    try:
+        number = save(args.output, seed, args.count, incidents=args.incidents,
+                      fault_rates={"missing_correlation": args.missing_correlation_rate,
+                                   "late_delivery": args.late_delivery_rate,
+                                   "malformed_envelope": args.malformed_envelope_rate},
+                      late_seconds=args.late_seconds)
+    except ValueError as error:
+        parser.error(str(error))
     print(f"Generated {args.count} bookings and {number} events in {args.output}")
     print("Share dataset/; keep reference/ for evaluation.")
