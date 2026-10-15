@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "services": [
+    "booking",
+    "payment",
+    "supplier",
+    "notification"
+  ],
+  "dependencies": [
+    {
+      "from": "booking",
+      "to": "payment"
+    },
+    {
+      "from": "booking",
+      "to": "supplier"
+    },
+    {
+      "from": "booking",
+      "to": "notification"
+    }
+  ],
+  "business_process": "hotel_booking"
+}

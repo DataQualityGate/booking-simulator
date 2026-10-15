@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "booking-public-fixture-v1",
+  "booking_count": 3,
+  "events_path": "events.jsonl",
+  "topology_path": "topology.json"
+}

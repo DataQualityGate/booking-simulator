@@ -1,0 +1,3 @@
+{"affected_services": ["booking"], "booking_id": "BOOK-000001", "root_cause_service": null, "scenario": "public_format_fixture", "status": "confirmed"}
+{"affected_services": ["payment", "booking"], "booking_id": "BOOK-000002", "root_cause_service": "payment", "scenario": "public_format_fixture", "status": "failed"}
+{"affected_services": ["supplier", "booking", "notification"], "booking_id": "BOOK-000003", "root_cause_service": "supplier", "scenario": "public_format_fixture", "status": "pending"}
