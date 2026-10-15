@@ -72,3 +72,9 @@ The [evaluation adapter](docs/evaluation-adapter.md) exports a versioned,
 instructor-only request for `engineering-evals`. It validates and joins booking
 predictions with separate references without executing student code or grading.
 A complete public fixture and smoke command are included.
+
+## Inject data-quality faults
+
+Use `--missing-correlation-rate 0.1 --late-delivery-rate 0.2
+--malformed-envelope-rate 0.05` to opt into deterministic telemetry corruption.
+Default output is unchanged. See [fault options and instructor ground truth](docs/data-quality-faults.md).
