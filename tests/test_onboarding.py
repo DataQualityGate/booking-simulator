@@ -11,6 +11,16 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def active_workflow(workflow):
+    """Strip comments from the policy fields in this workflow's plain block layout.
+
+    This is a regression guard for the checked-in layout, not a general YAML
+    parser or a substitute for reviewing executable workflow changes. Alternate
+    permission/timeout layouts must fail these checks until explicitly supported.
+    """
+    return '\n'.join(line.split('#', 1)[0].rstrip() for line in workflow.splitlines()) + '\n'
+
+
 class OnboardingTests(unittest.TestCase):
     def test_documented_first_run(self):
         """Execute the actual first-run commands without writing into the checkout."""
@@ -50,6 +60,7 @@ class OnboardingTests(unittest.TestCase):
 
     def assert_checkout_credentials_disabled(self, workflow):
         """Require explicit credential disabling within every checkout step."""
+        workflow = active_workflow(workflow)
         steps = re.split(r"(?m)^[ \t]+- ", workflow)[1:]
         pattern = r"(?m)^\s*uses:\s*['\"]?actions/checkout@"
         checkouts = [step for step in steps if re.search(pattern, step)]
@@ -71,14 +82,73 @@ class OnboardingTests(unittest.TestCase):
         safe_second = workflow + '      - name: Second checkout\n        uses: actions/checkout@v4\n        with:\n          persist-credentials: false\n'
         self.assert_checkout_credentials_disabled(safe_second)
 
+    def assert_job_timeouts(self, workflow):
+        """Require an active five-minute limit in every block-style CI job."""
+        active = active_workflow(workflow)
+        section = re.search(r'(?ms)^jobs:\n(.*?)(?=^[^\s].*:[ \t]*$|\Z)', active)
+        self.assertIsNotNone(section)
+        jobs = re.findall(r'(?ms)^  [A-Za-z0-9_-]+:\n(.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)', section.group(1))
+        self.assertGreater(len(jobs), 0)
+        for job in jobs:
+            self.assertRegex(job, r'(?m)^    timeout-minutes:[ \t]*5[ \t]*$')
+
+    def assert_permissions_read_only(self, workflow):
+        """Fail closed on scalar/flow permissions and any workflow/job write grant."""
+        active = active_workflow(workflow)
+        lines = [line for line in active.splitlines() if line.strip()]
+        top_level = None
+        for index, line in enumerate(lines):
+            header = re.fullmatch(r'( *)permissions:[ \t]*(.*)', line)
+            if not header:
+                continue
+            indent, inline = len(header[1]), header[2]
+            self.assertEqual(inline, '', 'Use explicit block-style read-only permissions')
+            entries = {}
+            for entry in lines[index + 1:]:
+                if len(entry) - len(entry.lstrip()) <= indent:
+                    break
+                setting = re.fullmatch(r' {' + str(indent + 2) + r'}([a-z][a-z-]*):[ \t]*(read|none)', entry)
+                self.assertIsNotNone(setting, f'Unsafe or unsupported permission: {entry}')
+                self.assertNotIn(setting[1], entries, 'Duplicate permission scope')
+                entries[setting[1]] = setting[2]
+            self.assertTrue(entries, 'Permissions must be explicit')
+            if indent == 0:
+                self.assertIsNone(top_level, 'Duplicate top-level permissions')
+                top_level = entries
+        self.assertEqual(top_level, {'contents': 'read'})
+
+    def test_active_job_timeouts(self):
+        """A comment, step setting or another bounded job cannot hide an unbounded job."""
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        self.assert_job_timeouts(workflow)
+        invalid = [workflow.replace('    timeout-minutes: 5', '    # timeout-minutes: 5'),
+                   workflow.replace('    timeout-minutes: 5', '      timeout-minutes: 5'),
+                   workflow + '  extra:\n    runs-on: ubuntu-latest\n']
+        for text in invalid:
+            with self.assertRaises(AssertionError):
+                self.assert_job_timeouts(text)
+        self.assert_job_timeouts(workflow + '  extra:\n    runs-on: ubuntu-latest\n    timeout-minutes: 5 # active limit\n')
+
+    def test_active_permission_scopes(self):
+        """Reject workflow/job write grants while ignoring commented examples."""
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        self.assert_permissions_read_only(workflow)
+        invalid = [workflow.replace('permissions:\n  contents: read', 'permissions: write-all'),
+                   workflow.replace('    timeout-minutes: 5', '    permissions:\n      issues: write\n    timeout-minutes: 5'),
+                   workflow.replace('    timeout-minutes: 5', '    permissions: write-all\n    timeout-minutes: 5'),
+                   workflow.replace('permissions:\n  contents: read', 'permissions: {contents: write}')]
+        for text in invalid:
+            with self.assertRaises(AssertionError):
+                self.assert_permissions_read_only(text)
+        self.assert_permissions_read_only(workflow + '# permissions: write-all\n#   issues: write\n')
+        self.assert_permissions_read_only(workflow.replace('    timeout-minutes: 5', '    permissions:\n      contents: read\n      issues: none\n    timeout-minutes: 5'))
+
     def test_public_ci_has_no_privileged_execution(self):
         """Guard the specific public workflow against credential/privilege regressions."""
-        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        workflow = active_workflow((ROOT / '.github/workflows/ci.yml').read_text())
         self.assertNotIn('pull_request_target', workflow)
-        self.assertNotIn('secrets.', workflow)
+        self.assertNotRegex(workflow, r'(?i)\bsecrets\b')
         self.assertNotIn('self-hosted', workflow)
         self.assert_checkout_credentials_disabled(workflow)
-        self.assertIn('timeout-minutes: 5', workflow)
-        permissions = re.search(r'^permissions:\n((?:[ \t]+.*\n)+)', workflow, re.MULTILINE).group(1)
-        self.assertEqual(permissions.strip(), 'contents: read')
-        self.assertNotRegex(workflow, r'\b(?:id-token|contents|actions|packages):\s*write')
+        self.assert_job_timeouts(workflow)
+        self.assert_permissions_read_only(workflow)
