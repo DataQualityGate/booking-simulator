@@ -89,3 +89,12 @@ They extend the educational exercise without implementing the student solution.
 python -m booking_simulator.challenges
 python -m booking_simulator.challenges --challenge supplier-recovery-v1
 ```
+
+## Validate SDLC evidence
+
+The [evidence contract](docs/sdlc-evidence.md) records engineering rationale, pinned
+artifacts, tests, review findings and human decisions without private prompt history.
+
+```bash
+python -m booking_simulator.evidence --evidence examples/evidence/valid.json --repository .
+```
