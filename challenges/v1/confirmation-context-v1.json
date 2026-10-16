@@ -112,6 +112,41 @@
         },
         "seed": 2
       }
+    },
+    {
+      "expected": {
+        "event_attributes": {
+          "BookingConfirmed": {
+            "confirmation_channel": "email"
+          }
+        },
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierTimeout",
+          "SupplierConfirmed",
+          "BookingConfirmed",
+          "NotificationSent"
+        ],
+        "truth": {
+          "affected_services": [
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": null,
+          "scenario": "supplier_timeout",
+          "status": "confirmed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {
+          "include_confirmation_context": true,
+          "recover_supplier_timeout": true
+        },
+        "seed": 0
+      }
     }
   ],
   "regression_fixtures": [

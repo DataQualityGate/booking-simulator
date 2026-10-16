@@ -2,24 +2,33 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 
 from .challenges import get_challenge
 from .evaluation_adapter import _read, _rows, prepare_evaluation
 from .evidence import _reference_kind, _schema_errors, validate_evidence
-from .incidents import SERVICES, _index, _labels
+from .incidents import SERVICES, _index, _labels, exercises
 from .predictions import _parse
 
 SCHEMA = Path(__file__).resolve().parent.parent / 'schemas' / 'combined-submission-v1.schema.json'
 
 
 def _submission_path(root, name):
+    """Resolve a local input file without allowing symlink escape."""
     if _reference_kind(name) != 'local':
         raise ValueError('Submission files must be local repository-relative paths')
     path = (root / name).resolve()
     if not path.is_relative_to(root.resolve()):
         raise ValueError('Submission path escapes submission directory')
     return path
+
+
+def _within(path, directory):
+    """Check lexical traversal, normalized path and resolved symlink target."""
+    candidates = (path.absolute(), Path(os.path.abspath(path)), path.resolve())
+    roots = (directory.absolute(), Path(os.path.abspath(directory)), directory.resolve())
+    return any(candidate.is_relative_to(root) for candidate in candidates for root in roots)
 
 
 def _impact_records(predictions, truth):
@@ -57,9 +66,9 @@ def prepare_combined(dataset, reference, submission, *, repository=None):
     paths = {key: _submission_path(root, manifest[key])
              for key in ('booking_predictions', 'impact_predictions', 'evidence')}
     # Keep every instructor source outside public/student inputs, including symlinks.
-    impact_truth_path = (reference / 'impact-truth.jsonl').resolve()
-    for source in ((reference / 'truth.jsonl').resolve(), impact_truth_path):
-        if source.is_relative_to(dataset.resolve()) or source.is_relative_to(root.resolve()):
+    impact_truth_path = reference / 'impact-truth.jsonl'
+    for source in (reference / 'truth.jsonl', impact_truth_path):
+        if _within(source, dataset) or _within(source, root):
             raise ValueError('Instructor references must stay outside dataset and submission directories')
     evidence_text, evidence_hash = _read(paths['evidence'])
     report = validate_evidence(evidence_text, repository=repository)
@@ -73,7 +82,14 @@ def prepare_combined(dataset, reference, submission, *, repository=None):
     booking = prepare_evaluation(dataset, reference, paths['booking_predictions'])
     prediction_text, prediction_hash = _read(paths['impact_predictions'])
     truth_text, truth_hash = _read(impact_truth_path)
-    records = _impact_records(_rows(prediction_text), _rows(truth_text) + [challenge['impact']])
+    reference_rows = _rows(truth_text)
+    incident_ids = {case['case_id'] for case in exercises()[0]}
+    if (len(reference_rows) != len(incident_ids)
+            or any(not isinstance(row, dict) or not isinstance(row.get('case_id'), str)
+                   for row in reference_rows)
+            or {row['case_id'] for row in reference_rows} != incident_ids):
+        raise ValueError('Impact reference must contain exactly the six public incident IDs')
+    records = _impact_records(_rows(prediction_text), [*reference_rows, challenge['impact']])
     challenge_hash = hashlib.sha256(json.dumps(challenge, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     return {
         'contract_version': '1.0', 'task': 'combined_sdlc_impact',
@@ -91,9 +107,9 @@ def prepare_combined(dataset, reference, submission, *, repository=None):
 
 
 def write_combined(dataset, reference, submission, output, *, repository=None):
+    """Exclusively write answers outside every protected input location."""
     dataset, reference, submission, output = map(Path, (dataset, reference, submission, output))
-    destination = output.resolve()
-    if any(destination.is_relative_to(path.resolve()) for path in (dataset, reference, submission.parent)):
+    if any(_within(output, path) for path in (dataset, reference, submission.parent)):
         raise ValueError('Instructor request must be outside dataset, reference and submission directories')
     # Fully validate before creating output; exclusive creation protects other files.
     request = prepare_combined(dataset, reference, submission, repository=repository)
@@ -104,6 +120,7 @@ def write_combined(dataset, reference, submission, output, *, repository=None):
 
 
 def main():
+    """Export a validated instructor request with no submission execution."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dataset', type=Path, required=True)
     parser.add_argument('--reference', type=Path, required=True)

@@ -29,6 +29,7 @@ def run_smoke():
 
 
 def main():
+    """Print a repeatable public rehearsal result without leaving output files."""
     print(json.dumps(run_smoke(), indent=2, sort_keys=True))
 
 
