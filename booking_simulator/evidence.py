@@ -1,6 +1,7 @@
 """Validate evidence structure and optional pinned artifact existence, not correctness."""
 import argparse
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
@@ -71,7 +72,9 @@ def _reference_kind(value):
 
 def _git(repository, *args):
     """Inspect Git object metadata without checking out or executing files."""
-    result = subprocess.run(['git', '-C', str(repository), *args], capture_output=True, text=True, timeout=10)
+    environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+    result = subprocess.run(['git', '--no-replace-objects', '-C', str(repository), *args],
+                            capture_output=True, text=True, timeout=10, env=environment)
     return result.returncode == 0, result.stdout.strip()
 
 

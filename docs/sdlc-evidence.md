@@ -40,7 +40,8 @@ infer independence, truth of reported results, remediation or approval quality.
 References are repository-relative POSIX file paths or HTTPS links without embedded
 credentials or query strings. Paths must not traverse parents. With `--repository`,
 the commit must exist locally and local artifacts must be blobs at **that commit**;
-working-tree files cannot satisfy the check. Remote links are never fetched and
+working-tree files cannot satisfy the check. Git repository/object-store environment
+overrides are removed and replacement refs are disabled for pinned reads. Remote links are never fetched and
 remain unverified. Without that option, only structure/reference syntax is checked.
 Reports expose the verification level and always say correctness is not demonstrated.
 Schema validation by external JSON Schema engines covers structure; the CLI adds

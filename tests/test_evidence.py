@@ -1,10 +1,12 @@
 import copy
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from booking_simulator.evidence import validate_evidence
 
@@ -68,7 +70,8 @@ class EvidenceTests(unittest.TestCase):
             repo = Path(directory)
             def git(*args):
                 """Run a trusted Git setup/read operation in a temporary fixture."""
-                return subprocess.run(['git', '-C', directory, *args], check=True, capture_output=True, text=True).stdout.strip()
+                environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+                return subprocess.run(['git', '-C', directory, *args], check=True, capture_output=True, text=True, env=environment).stdout.strip()
             git('init'); git('config', 'user.name', 'Synthetic'); git('config', 'user.email', 'test@example.org')
             (repo / 'artifact.md').write_text('synthetic')
             git('add', '.'); git('commit', '-m', 'fixture')
@@ -92,3 +95,36 @@ class EvidenceTests(unittest.TestCase):
             result = subprocess.run(command + [str(EXAMPLES / (name + '.json'))], capture_output=True, text=True)
             self.assertEqual(result.returncode, code, result.stderr)
             self.assertNotIn('FORBIDDEN-SYNTHETIC-FIELD', result.stdout + result.stderr)
+
+    def test_git_environment_and_replacement_objects(self):
+        """Validate the named repository and original tree despite ambient Git redirects."""
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            def git(*args):
+                """Keep trusted fixture setup independent from ambient repository selection."""
+                environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+                return subprocess.run(['git', '-C', directory, *args], env=environment,
+                                      check=True, capture_output=True, text=True).stdout.strip()
+            # Even fixture setup must ignore an inherited repository/object store.
+            poison = {'GIT_DIR': str(repo / 'wrong.git'), 'GIT_WORK_TREE': '/nonexistent',
+                      'GIT_OBJECT_DIRECTORY': str(repo / 'wrong-objects'),
+                      'GIT_ALTERNATE_OBJECT_DIRECTORIES': str(repo / 'wrong-alternates'),
+                      'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.bare', 'GIT_CONFIG_VALUE_0': 'true'}
+            with patch.dict(os.environ, poison):
+                git('init'); git('config', 'user.name', 'Synthetic'); git('config', 'user.email', 'test@example.org')
+                (repo / 'artifact.md').write_text('original')
+                git('add', '.'); git('commit', '-m', 'original')
+                original = git('rev-parse', 'HEAD')
+                value = copy.deepcopy(self.value); value['commit_sha'] = original
+                value['intent'] = value['spec'] = 'artifact.md'
+                for row in value['tests'] + value['reviews']: row['artifact'] = 'artifact.md'
+                self.assertTrue(self.validate(value, repository=repo)['valid'])
+                (repo / 'new.md').write_text('present only in replacement tree')
+                git('add', '.'); git('commit', '-m', 'replacement')
+                replacement = git('rev-parse', 'HEAD')
+                git('replace', original, replacement)
+                self.assertEqual(git('cat-file', '-t', original + ':new.md'), 'blob')
+                value['spec'] = 'new.md'
+                report = self.validate(value, repository=repo)
+                self.assertFalse(report['valid'])
+                self.assertTrue(any('missing at pinned commit' in error for error in report['errors']))
