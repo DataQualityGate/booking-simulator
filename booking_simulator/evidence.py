@@ -73,7 +73,7 @@ def _reference_kind(value):
 def _git(repository, *args):
     """Inspect Git object metadata without checking out or executing files."""
     environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
-    result = subprocess.run(['git', '--no-replace-objects', '-C', str(repository), *args],
+    result = subprocess.run(['git', '--no-replace-objects', '--no-lazy-fetch', '-C', str(repository), *args],
                             capture_output=True, text=True, timeout=10, env=environment)
     return result.returncode == 0, result.stdout.strip()
 

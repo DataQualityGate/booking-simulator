@@ -41,7 +41,10 @@ References are repository-relative POSIX file paths or HTTPS links without embed
 credentials or query strings. Paths must not traverse parents. With `--repository`,
 the commit must exist locally and local artifacts must be blobs at **that commit**;
 working-tree files cannot satisfy the check. Git repository/object-store environment
-overrides are removed and replacement refs are disabled for pinned reads. Remote links are never fetched and
+overrides are removed; replacement refs and lazy fetching are disabled for pinned
+reads. Missing local objects fail validation without invoking fetch helpers.
+Optional repository checks require Git supporting `--no-lazy-fetch`; an older
+Git fails validation rather than performing a weaker check. Remote links are never fetched and
 remain unverified. Without that option, only structure/reference syntax is checked.
 Reports expose the verification level and always say correctness is not demonstrated.
 Schema validation by external JSON Schema engines covers structure; the CLI adds

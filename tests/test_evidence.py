@@ -1,6 +1,7 @@
 import copy
 import json
 import os
+import shlex
 from pathlib import Path
 import subprocess
 import sys
@@ -128,3 +129,30 @@ class EvidenceTests(unittest.TestCase):
                 report = self.validate(value, repository=repo)
                 self.assertFalse(report['valid'])
                 self.assertTrue(any('missing at pinned commit' in error for error in report['errors']))
+
+    def test_missing_git_objects_never_trigger_fetch(self):
+        """Partial repositories cannot invoke configured fetch helpers during validation."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); repo = root / 'repo'; repo.mkdir()
+            def git(*args):
+                """Create a controlled partial-repository fixture without inherited redirects."""
+                environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+                return subprocess.run(['git', '-C', str(repo), *args], env=environment,
+                                      check=True, capture_output=True, text=True).stdout.strip()
+            git('init'); git('config', 'user.name', 'Synthetic'); git('config', 'user.email', 'test@example.org')
+            (repo / 'artifact.md').write_text('synthetic local artifact')
+            git('add', '.'); git('commit', '-m', 'fixture')
+            commit = git('rev-parse', 'HEAD'); blob = git('rev-parse', 'HEAD:artifact.md')
+            marker = root / 'FETCH_HELPER_MUST_NOT_RUN'; helper = root / 'fetch-helper'
+            helper.write_text('#!/bin/sh\ntouch ' + shlex.quote(str(marker)) + '\nexit 1\n')
+            helper.chmod(0o700)
+            git('config', 'remote.origin.url', 'ext::' + str(helper))
+            git('config', 'remote.origin.promisor', 'true')
+            git('config', 'extensions.partialClone', 'origin')
+            git('config', 'protocol.ext.allow', 'always')
+            (repo / '.git/objects' / blob[:2] / blob[2:]).unlink()
+            value = copy.deepcopy(self.value); value['commit_sha'] = commit
+            value['intent'] = value['spec'] = 'artifact.md'
+            for row in value['tests'] + value['reviews']: row['artifact'] = 'artifact.md'
+            self.assertFalse(self.validate(value, repository=repo)['valid'])
+            self.assertFalse(marker.exists())
