@@ -1,0 +1,197 @@
+{
+  "baseline": "SupplierTimeout leaves a booking pending and does not trigger notification.",
+  "baseline_fixtures": [
+    {
+      "expected": {
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierTimeout",
+          "BookingPending"
+        ],
+        "truth": {
+          "affected_services": [
+            "supplier",
+            "booking",
+            "notification"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": "supplier",
+          "scenario": "supplier_timeout",
+          "status": "pending"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {},
+        "seed": 0
+      }
+    }
+  ],
+  "challenge_id": "supplier-recovery-v1",
+  "fixture_contract": "Each fixture calls generate with input seed/count and keyword options. Compare the full ordered event_types and exact truth row; event_attributes are required subsets on every matching event. Preserve all unspecified baseline fields and event envelopes. Regression fixtures without options must remain byte-identical. Fixtures are public acceptance examples, not held-out grading cases.",
+  "impact": {
+    "affected_services": [
+      "supplier",
+      "booking",
+      "notification",
+      "analytics"
+    ],
+    "case_id": "supplier-recovery-v1",
+    "possibly_affected_services": [
+      "audit"
+    ],
+    "unaffected_services": [
+      "payment"
+    ]
+  },
+  "impact_rationale": "Recovery changes supplier and booking outcomes. Notification now sends and analytics receives a confirmation indirectly. Audit consumes confirmations but its behavior is undocumented; payment authorization is unchanged.",
+  "post_change_fixtures": [
+    {
+      "expected": {
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierTimeout",
+          "SupplierConfirmed",
+          "BookingConfirmed",
+          "NotificationSent"
+        ],
+        "truth": {
+          "affected_services": [
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": null,
+          "scenario": "supplier_timeout",
+          "status": "confirmed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {
+          "recover_supplier_timeout": true
+        },
+        "seed": 0
+      }
+    }
+  ],
+  "regression_fixtures": [
+    {
+      "expected": {
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierTimeout",
+          "BookingPending"
+        ],
+        "truth": {
+          "affected_services": [
+            "supplier",
+            "booking",
+            "notification"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": "supplier",
+          "scenario": "supplier_timeout",
+          "status": "pending"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {},
+        "seed": 0
+      }
+    },
+    {
+      "expected": {
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierConfirmed",
+          "BookingConfirmed",
+          "NotificationSent"
+        ],
+        "truth": {
+          "affected_services": [
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": null,
+          "scenario": "success",
+          "status": "confirmed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {
+          "recover_supplier_timeout": true
+        },
+        "seed": 1
+      }
+    },
+    {
+      "expected": {
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierConfirmed",
+          "BookingConfirmed",
+          "SupplierConfirmed",
+          "NotificationSent"
+        ],
+        "truth": {
+          "affected_services": [
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": null,
+          "scenario": "message_delay",
+          "status": "confirmed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {
+          "recover_supplier_timeout": true
+        },
+        "seed": 2
+      }
+    },
+    {
+      "expected": {
+        "event_types": [
+          "BookingRequested",
+          "PaymentDeclined",
+          "BookingFailed"
+        ],
+        "truth": {
+          "affected_services": [
+            "payment",
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": "payment",
+          "scenario": "payment_failed",
+          "status": "failed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {
+          "recover_supplier_timeout": true
+        },
+        "seed": 19
+      }
+    }
+  ],
+  "requested_change": "Add an opt-in recovery after SupplierTimeout. Replace BookingPending with SupplierConfirmed (occurred/observed offsets 20/21 seconds), BookingConfirmed (23/24), NotificationSent (25/26). Keep scenario=supplier_timeout for provenance; confirmed truth has null root and affected_services=[booking], following the existing truth convention. Other scenarios and the default call must remain byte-identical.",
+  "schema_version": "1.0",
+  "target": "booking_simulator.cli.generate(seed, count, *, recover_supplier_timeout=False)",
+  "title": "Recover a transient supplier timeout"
+}
