@@ -78,3 +78,14 @@ A complete public fixture and smoke command are included.
 Use `--missing-correlation-rate 0.1 --late-delivery-rate 0.2
 --malformed-envelope-rate 0.05` to opt into deterministic telemetry corruption.
 Default output is unchanged. See [fault options and instructor ground truth](docs/data-quality-faults.md).
+
+## SDLC change challenges
+
+Inspect two versioned public change requests with reproducible baseline,
+post-change and regression fixtures: [SDLC challenge contract](docs/change-challenges.md).
+They extend the educational exercise without implementing the student solution.
+
+```bash
+python -m booking_simulator.challenges
+python -m booking_simulator.challenges --challenge supplier-recovery-v1
+```
