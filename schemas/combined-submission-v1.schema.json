@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DataQualityGate/booking-simulator/schemas/combined-submission-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "challenge_id",
+    "commit_sha",
+    "booking_predictions",
+    "impact_predictions",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "challenge_id": {
+      "enum": [
+        "supplier-recovery-v1",
+        "confirmation-context-v1"
+      ]
+    },
+    "commit_sha": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})(?![\\s\\S])"
+    },
+    "booking_predictions": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "impact_predictions": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "evidence": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    }
+  }
+}

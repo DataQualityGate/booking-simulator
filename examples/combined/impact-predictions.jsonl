@@ -1,0 +1,7 @@
+{"affected_services": ["booking", "notification", "payment"], "case_id": "payment-outage", "possibly_affected_services": ["audit"]}
+{"affected_services": ["booking", "notification", "supplier"], "case_id": "supplier-outage", "possibly_affected_services": ["audit"]}
+{"affected_services": ["notification"], "case_id": "notification-outage", "possibly_affected_services": []}
+{"affected_services": ["booking", "notification"], "case_id": "payment-api-break", "possibly_affected_services": ["audit"]}
+{"affected_services": ["notification"], "case_id": "confirmation-schema-break", "possibly_affected_services": ["audit"]}
+{"affected_services": [], "case_id": "confirmation-schema-add", "possibly_affected_services": ["audit"]}
+{"affected_services": ["supplier", "booking", "notification", "analytics"], "case_id": "supplier-recovery-v1", "possibly_affected_services": ["audit"]}
