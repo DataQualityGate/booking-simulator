@@ -16,6 +16,7 @@ def challenges():
 
 
 def get_challenge(challenge_id):
+    """Resolve one immutable ID without exposing shared mutable state."""
     for challenge in challenges():
         if challenge["challenge_id"] == challenge_id:
             return copy.deepcopy(challenge)
@@ -23,6 +24,7 @@ def get_challenge(challenge_id):
 
 
 def main():
+    """List the catalog or exclusively export a selected public manifest."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--challenge", help="Show one versioned challenge; omitted lists IDs")
     parser.add_argument("--output", type=Path, help="Export one manifest to a new file")

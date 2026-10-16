@@ -13,6 +13,7 @@ from booking_simulator.incidents import SERVICES, _labels
 
 class ChallengeTests(unittest.TestCase):
     def test_catalog_and_baselines(self):
+        """Public baseline fixtures match the unchanged generator."""
         catalog = challenges()
         self.assertEqual(len(catalog), 2)
         self.assertEqual(len({c['challenge_id'] for c in catalog}), 2)
@@ -29,6 +30,7 @@ class ChallengeTests(unittest.TestCase):
                 self.assertEqual(truth[0], fixture['expected']['truth'])
 
     def test_indirect_impact_and_changed_outcome(self):
+        """Recovery explicitly changes downstream business outcomes."""
         challenge = get_challenge('supplier-recovery-v1')
         self.assertIn('notification', challenge['impact']['affected_services'])
         before = challenge['baseline_fixtures'][0]['expected']
@@ -39,6 +41,7 @@ class ChallengeTests(unittest.TestCase):
         self.assertIn('NotificationSent', after['event_types'])
 
     def test_fresh_manifests(self):
+        """Catalog lookups isolate mutations and reject unknown IDs."""
         first = get_challenge('supplier-recovery-v1')
         first['baseline_fixtures'].clear()
         self.assertTrue(get_challenge('supplier-recovery-v1')['baseline_fixtures'])
@@ -46,6 +49,7 @@ class ChallengeTests(unittest.TestCase):
             get_challenge('../../intent.md')
 
     def test_cli_export_and_errors(self):
+        """CLI output is stable and existing exports are protected."""
         command = [sys.executable, '-m', 'booking_simulator.challenges']
         result = subprocess.run(command, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -59,3 +63,20 @@ class ChallengeTests(unittest.TestCase):
             self.assertEqual(output.read_bytes(), original)
         for args in (['--challenge', 'unknown'], ['--output', 'unused.json']):
             self.assertEqual(subprocess.run(command + args, capture_output=True).returncode, 2)
+
+    def test_multi_booking_rng_and_composition_contract(self):
+        """Pin downstream RNG-sensitive records and combined option expectations."""
+        recovery = get_challenge('supplier-recovery-v1')
+        fixture = recovery['multi_booking_fixture']
+        events, truth = generate(fixture['input']['seed'], fixture['input']['count'])
+        expected = fixture['expected']
+        self.assertEqual(expected['unchanged_following_events'],
+                         [e for e in events if e['booking_id'] == 'BOOK-000002'])
+        self.assertEqual(expected['unchanged_following_truth'], truth[1])
+        self.assertEqual(expected['recovery_event_attributes'],
+                         next(e['attributes'] for e in events if e['event_type'] == 'BookingPending'))
+        combined = get_challenge('confirmation-context-v1')['post_change_fixtures'][-1]
+        self.assertEqual(combined['input']['options'],
+                         {'recover_supplier_timeout': True, 'include_confirmation_context': True})
+        self.assertEqual(combined['expected']['event_types'], recovery['post_change_fixtures'][0]['expected']['event_types'])
+        self.assertEqual(combined['expected']['event_attributes']['BookingConfirmed']['confirmation_channel'], 'email')

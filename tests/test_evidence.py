@@ -13,12 +13,15 @@ EXAMPLES = Path(__file__).resolve().parent.parent / 'examples' / 'evidence'
 
 class EvidenceTests(unittest.TestCase):
     def setUp(self):
+        """Load an isolated copy of the synthetic evidence example."""
         self.value = json.loads((EXAMPLES / 'valid.json').read_text())
 
     def validate(self, value, **kwargs):
+        """Serialize a fixture through the public validation entry point."""
         return validate_evidence(json.dumps(value), **kwargs)
 
     def test_public_fixtures_and_claims(self):
+        """Presence validation never asserts functional correctness."""
         for name, valid in [('valid', True), ('missing', False), ('invalid', False)]:
             report = validate_evidence((EXAMPLES / (name + '.json')).read_text())
             self.assertEqual(report['valid'], valid, report)
@@ -26,8 +29,12 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(self.validate(self.value)['verification'], 'structure_only')
 
     def test_invalid_shapes_and_json(self):
+        """Malformed JSON, schema values and incomplete evidence fail."""
         for text in ('null', '[]', '{"schema_version":"1.0","schema_version":"1.0"}', 'NaN', '{'):
-            self.assertFalse(validate_evidence(text)['valid'])
+            report = validate_evidence(text)
+            self.assertFalse(report['valid'])
+            self.assertEqual(set(report), set(self.validate(self.value)))
+            self.assertFalse(report['remote_references_verified'])
         for key, bad in [('commit_sha', 'main'), ('commit_sha', 'a' * 40 + '\n'), ('challenge_id', 'unknown'), ('tests', []),
                          ('rationale', ' '), ('reviews', [None]), ('human_decisions', []),
                          ('limitations', [5])]:
@@ -37,6 +44,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertFalse(self.validate(value)['valid'])
 
     def test_relationships(self):
+        """Duplicate IDs and dangling finding references fail."""
         value = copy.deepcopy(self.value); value['tests'] *= 2
         self.assertFalse(self.validate(value)['valid'])
         value = copy.deepcopy(self.value); value['human_decisions'][0]['finding_ids'] = ['unknown']
@@ -45,6 +53,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertFalse(self.validate(value)['valid'])
 
     def test_reference_safety(self):
+        """Traversal and credential-bearing references are rejected."""
         for ref in ('../secret', '/etc/passwd', 'file:///etc/passwd', 'https://user:secret@example.org/a',
                     'https://example.org/?key=secret', '//example.org/a', 'a\\b', 'a\nb', '.', 'docs/'):
             value = copy.deepcopy(self.value); value['intent'] = ref
@@ -54,9 +63,11 @@ class EvidenceTests(unittest.TestCase):
         self.assertTrue(report['valid']); self.assertFalse(report['remote_references_verified'])
 
     def test_pinned_artifacts_and_commands_never_execute(self):
+        """Artifact existence follows pinned Git objects without running commands."""
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             def git(*args):
+                """Run a trusted Git setup/read operation in a temporary fixture."""
                 return subprocess.run(['git', '-C', directory, *args], check=True, capture_output=True, text=True).stdout.strip()
             git('init'); git('config', 'user.name', 'Synthetic'); git('config', 'user.email', 'test@example.org')
             (repo / 'artifact.md').write_text('synthetic')
@@ -64,7 +75,7 @@ class EvidenceTests(unittest.TestCase):
             value = copy.deepcopy(self.value); value['commit_sha'] = git('rev-parse', 'HEAD')
             value['intent'] = value['spec'] = 'artifact.md'
             for row in value['tests'] + value['reviews']: row['artifact'] = 'artifact.md'
-            value['tests'][0]['command'] = 'touch MUST_NOT_EXIST'
+            value['tests'][0]['command'] = f'touch {repo / "MUST_NOT_EXIST"}'
             self.assertTrue(self.validate(value, repository=repo)['valid'])
             self.assertFalse((repo / 'MUST_NOT_EXIST').exists())
             (repo / 'artifact.md').unlink()
@@ -75,6 +86,7 @@ class EvidenceTests(unittest.TestCase):
             self.assertFalse(self.validate(value, repository=repo)['valid'])
 
     def test_cli_exit_codes_and_private_values_not_echoed(self):
+        """CLI status and redacted diagnostics match the contract."""
         command = [sys.executable, '-m', 'booking_simulator.evidence', '--evidence']
         for name, code in [('valid', 0), ('missing', 1), ('invalid', 1), ('absent', 2)]:
             result = subprocess.run(command + [str(EXAMPLES / (name + '.json'))], capture_output=True, text=True)

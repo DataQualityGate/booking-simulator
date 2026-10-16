@@ -70,6 +70,7 @@ def _reference_kind(value):
 
 
 def _git(repository, *args):
+    """Inspect Git object metadata without checking out or executing files."""
     result = subprocess.run(['git', '-C', str(repository), *args], capture_output=True, text=True, timeout=10)
     return result.returncode == 0, result.stdout.strip()
 
@@ -80,16 +81,17 @@ def validate_evidence(text, *, repository=None):
     Commands recorded by students are never executed. Remote links are never
     fetched; their existence and content remain explicitly unverified.
     """
+    report = {'schema_version': '1.0', 'valid': False, 'errors': [],
+              'verification': 'structure_only', 'correctness_demonstrated': False,
+              'remote_references_verified': False}
+    errors = report['errors']
     try:
         evidence = _parse(text)
     except ValueError:
-        return {'schema_version': '1.0', 'valid': False, 'errors': ['Invalid strict JSON'],
-                'verification': 'structure_only', 'correctness_demonstrated': False}
+        errors.append('Invalid strict JSON')
+        return report
     schema = _parse(SCHEMA_PATH.read_text(encoding='utf-8'))
-    errors = _schema_errors(evidence, schema)
-    report = {'schema_version': '1.0', 'valid': False, 'errors': errors,
-              'verification': 'structure_only', 'correctness_demonstrated': False,
-              'remote_references_verified': False}
+    errors.extend(_schema_errors(evidence, schema))
     if errors:
         return report
     findings = [f for review in evidence['reviews'] for f in review['findings']]
@@ -132,6 +134,7 @@ def validate_evidence(text, *, repository=None):
 
 
 def main():
+    """Print diagnostics with distinct invalid-evidence and input-error exits."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--evidence', type=Path, required=True)
     parser.add_argument('--repository', type=Path, help='Read-only Git object checks at commit_sha')

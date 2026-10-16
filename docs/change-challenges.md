@@ -41,3 +41,8 @@ are separate extensions. Protected variants belong only in `engineering-evals`.
 This follows the combined bootcamp plan's boundaries: the simulator owns public
 synthetic exercises; the independent evaluator owns protected assessment and
 isolation of untrusted submissions.
+
+The recovery manifest also pins a two-booking fixture: recovery events reuse the
+replaced pending event attributes with no extra shared RNG draws. Full subsequent
+events and truth stay identical. The context manifest includes both options together.
+The [combined case plan](bootcamp/combined-case-plan.md) is included for traceability.

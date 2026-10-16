@@ -47,6 +47,117 @@
     ]
   },
   "impact_rationale": "Recovery changes supplier and booking outcomes. Notification now sends and analytics receives a confirmation indirectly. Audit consumes confirmations but its behavior is undocumented; payment authorization is unchanged.",
+  "multi_booking_fixture": {
+    "expected": {
+      "recovered_booking_id": "BOOK-000001",
+      "recovery_event_attributes": {
+        "region": "south",
+        "synthetic": true
+      },
+      "unchanged_following_events": [
+        {
+          "attributes": {
+            "region": "south",
+            "synthetic": true
+          },
+          "booking_id": "BOOK-000002",
+          "event_id": "BOOK-000002-00",
+          "event_type": "BookingRequested",
+          "observed_at": "2026-01-01T00:01:00Z",
+          "occurred_at": "2026-01-01T00:01:00Z",
+          "schema_version": "1.0",
+          "service": "booking",
+          "trace_id": "fd22c55437c1603a02ce4f31b353ad86"
+        },
+        {
+          "attributes": {
+            "region": "south",
+            "synthetic": true
+          },
+          "booking_id": "BOOK-000002",
+          "event_id": "BOOK-000002-01",
+          "event_type": "PaymentAuthorized",
+          "observed_at": "2026-01-01T00:01:03Z",
+          "occurred_at": "2026-01-01T00:01:02Z",
+          "schema_version": "1.0",
+          "service": "payment",
+          "trace_id": "fd22c55437c1603a02ce4f31b353ad86"
+        },
+        {
+          "attributes": {
+            "region": "south",
+            "synthetic": true
+          },
+          "booking_id": "BOOK-000002",
+          "event_id": "BOOK-000002-02",
+          "event_type": "ReservationRequested",
+          "observed_at": "2026-01-01T00:01:05Z",
+          "occurred_at": "2026-01-01T00:01:04Z",
+          "schema_version": "1.0",
+          "service": "supplier",
+          "trace_id": "fd22c55437c1603a02ce4f31b353ad86"
+        },
+        {
+          "attributes": {
+            "region": "east",
+            "synthetic": true
+          },
+          "booking_id": "BOOK-000002",
+          "event_id": "BOOK-000002-03",
+          "event_type": "SupplierConfirmed",
+          "observed_at": "2026-01-01T00:01:08Z",
+          "occurred_at": "2026-01-01T00:01:07Z",
+          "schema_version": "1.0",
+          "service": "supplier",
+          "trace_id": "fd22c55437c1603a02ce4f31b353ad86"
+        },
+        {
+          "attributes": {
+            "region": "north",
+            "synthetic": true
+          },
+          "booking_id": "BOOK-000002",
+          "event_id": "BOOK-000002-04",
+          "event_type": "BookingConfirmed",
+          "observed_at": "2026-01-01T00:01:11Z",
+          "occurred_at": "2026-01-01T00:01:10Z",
+          "schema_version": "1.0",
+          "service": "booking",
+          "trace_id": "fd22c55437c1603a02ce4f31b353ad86"
+        },
+        {
+          "attributes": {
+            "region": "east",
+            "synthetic": true
+          },
+          "booking_id": "BOOK-000002",
+          "event_id": "BOOK-000002-05",
+          "event_type": "NotificationSent",
+          "observed_at": "2026-01-01T00:01:13Z",
+          "occurred_at": "2026-01-01T00:01:12Z",
+          "schema_version": "1.0",
+          "service": "notification",
+          "trace_id": "fd22c55437c1603a02ce4f31b353ad86"
+        }
+      ],
+      "unchanged_following_truth": {
+        "affected_services": [
+          "booking"
+        ],
+        "booking_id": "BOOK-000002",
+        "root_cause_service": null,
+        "scenario": "success",
+        "status": "confirmed"
+      }
+    },
+    "input": {
+      "count": 2,
+      "options": {
+        "recover_supplier_timeout": true
+      },
+      "seed": 0
+    }
+  },
   "post_change_fixtures": [
     {
       "expected": {
@@ -190,7 +301,7 @@
       }
     }
   ],
-  "requested_change": "Add an opt-in recovery after SupplierTimeout. Replace BookingPending with SupplierConfirmed (occurred/observed offsets 20/21 seconds), BookingConfirmed (23/24), NotificationSent (25/26). Keep scenario=supplier_timeout for provenance; confirmed truth has null root and affected_services=[booking], following the existing truth convention. Other scenarios and the default call must remain byte-identical.",
+  "requested_change": "Add an opt-in recovery after SupplierTimeout. Replace BookingPending with SupplierConfirmed (occurred/observed offsets 20/21 seconds), BookingConfirmed (23/24), NotificationSent (25/26). Keep scenario=supplier_timeout for provenance; confirmed truth has null root and affected_services=[booking], following the existing truth convention. Other scenarios and the default call must remain byte-identical. Reuse the replaced BookingPending attributes (including its one shared-RNG region draw) for all three recovery events; do not consume additional shared RNG draws. Preserve its original draw position, so later bookings retain their baseline outcomes and attributes.",
   "schema_version": "1.0",
   "target": "booking_simulator.cli.generate(seed, count, *, recover_supplier_timeout=False)",
   "title": "Recover a transient supplier timeout"
