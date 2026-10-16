@@ -98,3 +98,13 @@ artifacts, tests, review findings and human decisions without private prompt his
 ```bash
 python -m booking_simulator.evidence --evidence examples/evidence/valid.json --repository .
 ```
+
+## Combined bootcamp rehearsal
+
+[Combined submission and evaluator contract](docs/combined-submission.md) joins
+booking predictions, incident/challenge impact and pinned SDLC evidence while
+keeping correctness execution and independent process review in `engineering-evals`.
+
+```bash
+python -m booking_simulator.smoke
+```
