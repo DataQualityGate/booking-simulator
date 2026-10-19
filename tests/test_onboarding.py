@@ -117,13 +117,26 @@ class OnboardingTests(unittest.TestCase):
         safe_second = workflow + '      - name: Second checkout\n        uses: actions/checkout@v4\n        with:\n          persist-credentials: false\n'
         self.assert_checkout_credentials_disabled(safe_second)
 
+    def workflow_jobs(self, active):
+        """Split only supported plain block jobs; reject layouts that hide boundaries."""
+        section = re.search(r'(?ms)^jobs:\n(.*?)(?=^[^\s].*:[ \t]*$|\Z)', active)
+        self.assertIsNotNone(section)
+        identifiers = []
+        for line in section.group(1).splitlines():
+            if re.match(r'  \S', line):
+                header = re.fullmatch(r'  ([A-Za-z_][A-Za-z0-9_-]*):', line)
+                self.assertIsNotNone(header, f'Unsupported job layout: {line}')
+                identifiers.append(header[1])
+        self.assertGreater(len(identifiers), 0)
+        self.assertEqual(len(identifiers), len(set(identifiers)), 'Duplicate job ID')
+        jobs = re.findall(r'(?ms)^  [A-Za-z_][A-Za-z0-9_-]*:\n(.*?)(?=^  [A-Za-z_][A-Za-z0-9_-]*:\n|\Z)', section.group(1))
+        self.assertEqual(len(jobs), len(identifiers))
+        return jobs
+
     def assert_job_timeouts(self, workflow):
         """Require an active five-minute limit in every block-style CI job."""
         active = active_workflow(workflow)
-        section = re.search(r'(?ms)^jobs:\n(.*?)(?=^[^\s].*:[ \t]*$|\Z)', active)
-        self.assertIsNotNone(section)
-        jobs = re.findall(r'(?ms)^  [A-Za-z0-9_-]+:\n(.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)', section.group(1))
-        self.assertGreater(len(jobs), 0)
+        jobs = self.workflow_jobs(active)
         for job in jobs:
             self.assertRegex(job, r'(?m)^    timeout-minutes:[ \t]*5[ \t]*$')
 
@@ -151,10 +164,7 @@ class OnboardingTests(unittest.TestCase):
                 self.assertIsNone(top_level, 'Duplicate top-level permissions')
                 top_level = entries
         self.assertEqual(top_level, {'contents': 'read'})
-        section = re.search(r'(?ms)^jobs:\n(.*?)(?=^[^\s].*:[ \t]*$|\Z)', active)
-        self.assertIsNotNone(section)
-        jobs = re.findall(r'(?ms)^  [A-Za-z0-9_-]+:\n(.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)', section.group(1))
-        self.assertGreater(len(jobs), 0)
+        jobs = self.workflow_jobs(active)
         for job in jobs:
             headers = re.findall(r'(?m)^    permissions:.*$', job)
             self.assertLessEqual(len(headers), 1, 'Duplicate job permission mapping')
@@ -253,3 +263,16 @@ class OnboardingTests(unittest.TestCase):
             else:
                 self.assertTrue(value['valid'])
                 self.assertFalse(value['correctness_demonstrated'])
+
+    def test_unsupported_job_layouts_fail_closed(self):
+        """Quoted, flow-style and duplicate jobs cannot inherit a neighboring job's checks."""
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        unsupported = ["  'extra':\n    runs-on: ubuntu-latest\n",
+                       '  "extra":\n    runs-on: ubuntu-latest\n',
+                       '  extra: {runs-on: ubuntu-latest}\n',
+                       '  test:\n    runs-on: ubuntu-latest\n']
+        for extra in unsupported:
+            for check in (self.assert_job_timeouts, self.assert_permissions_read_only):
+                with self.subTest(extra=extra, check=check.__name__):
+                    with self.assertRaises(AssertionError):
+                        check(workflow + extra)
