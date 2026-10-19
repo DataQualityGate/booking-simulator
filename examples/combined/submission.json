@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "challenge_id": "supplier-recovery-v1",
+  "commit_sha": "af6c6d75f954fe8ad5fcde42bddc3463091691ce",
+  "booking_predictions": "booking-predictions.jsonl",
+  "impact_predictions": "impact-predictions.jsonl",
+  "evidence": "sdlc-evidence.json"
+}

@@ -17,6 +17,20 @@
 - Standard-library automated tests and public GitHub CI with read-only token
   permissions and no persisted checkout credentials.
 
+- Two versioned public SDLC change challenges, including indirect business impact,
+  composed options and multi-booking regression fixtures (Issue #14).
+- Versioned SDLC evidence schema, synthetic examples, strict validation and
+  optional offline pinned Git artifact inspection (Issue #15).
+- Combined submission/evaluator handoff and public offline rehearsal, with
+  correctness and process assessment explicitly kept separate (Issue #16).
+
+## Before a scored cohort
+
+- Confirm the proposed rubric and assignment/runtime interfaces with CU.
+- Run and record the full student journey with manual/free tooling and AI assistance;
+  the public contract smoke is not proof of completed student pilots.
+- Provision the protected execution and grading boundary in `engineering-evals`.
+
 ## Potential next extensions
 
 - Optional HTTP/event-stream transport without a cloud dependency.

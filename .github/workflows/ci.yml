@@ -12,6 +12,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -23,3 +24,7 @@ jobs:
         run: python -m booking_simulator.predictions --predictions examples/predictions/submission.jsonl --events examples/predictions/events.jsonl
       - name: Smoke test public evaluation handoff
         run: python -m booking_simulator.evaluation_adapter --dataset examples/evaluation/dataset --reference examples/evaluation/reference --predictions examples/predictions/submission.jsonl --output build/public-evaluation-request.json
+      - name: Validate pinned SDLC evidence fixture
+        run: python -m booking_simulator.evidence --evidence examples/evidence/valid.json --repository .
+      - name: Rehearse combined public contracts offline
+        run: python -m booking_simulator.smoke

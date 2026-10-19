@@ -45,13 +45,14 @@ is a package environment, not an isolation boundary.
    process and time limits at the runtime boundary. Pin the code revision and
    public input hashes.
 2. **Output transfer:** terminate the student's processes before grading. Copy
-   bounded plain JSONL output as data, not a script, archive or executable.
+   bounded plain JSON/JSONL prediction and evidence outputs as data, not a script,
+   archive or executable.
    Reject links and unexpected file types/paths; validate record shape and ID
    coverage in a clean trusted process. Bound file sizes and record counts in
    the assessment runner before parsing.
 3. **Trusted grading:** only now load instructor references and run the trusted
-   evaluator. The local handoff from Issue #5 contains expected answers and is
-   instructor-only. Do not return it to the student runtime or expose it in
+   evaluator. Both the booking handoff and combined SDLC/impact request contain expected
+   answers and are instructor-only. Do not return it to the student runtime or expose it in
    logs, downloadable CI artifacts or PR comments. Release only the agreed
    score report and feedback.
 
@@ -91,3 +92,14 @@ Report repository security concerns privately through the maintainer contact
 available on the GitHub repository. Do not post credentials or hidden answers
 in an issue. Revoke any exposed credential through its provider before sharing
 redacted details.
+
+## SDLC evidence and combined submissions
+
+Treat the combined manifest, evidence, artifact URLs and recorded test commands as
+untrusted data. Never execute a recorded command or fetch a URL merely because it
+appears in evidence. The [evidence validator](sdlc-evidence.md) and
+[combined adapter](combined-submission.md) validate format, identity and coverage;
+they do not prove code correctness, reviewer independence or the truth of reported
+results. Pin the implementation commit and keep human approval separate from bot
+review. Public-CI policy tests guard the checked-in block-style layout and are not
+a general YAML analyzer, an authorization boundary or a sandbox.

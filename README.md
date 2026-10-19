@@ -4,7 +4,7 @@ A **fully synthetic, deterministic** educational dataset generator for distribut
 
 ## Bootcamp
 
-Start with the [student assignment and fork/PR guide](docs/student-guide.md).
+Start with the [combined student assignment and fork/PR guide](docs/student-guide.md).
 Instructors should read the [sandbox and hidden-evaluation boundaries](docs/sandbox-security.md).
 
 ## Quickstart
@@ -83,3 +83,33 @@ A complete public fixture and smoke command are included.
 Use `--missing-correlation-rate 0.1 --late-delivery-rate 0.2
 --malformed-envelope-rate 0.05` to opt into deterministic telemetry corruption.
 Default output is unchanged. See [fault options and instructor ground truth](docs/data-quality-faults.md).
+
+## SDLC change challenges
+
+Inspect two versioned public change requests with reproducible baseline,
+post-change and regression fixtures: [SDLC challenge contract](docs/change-challenges.md).
+They extend the educational exercise without implementing the student solution.
+
+```bash
+python -m booking_simulator.challenges
+python -m booking_simulator.challenges --challenge supplier-recovery-v1
+```
+
+## Validate SDLC evidence
+
+The [evidence contract](docs/sdlc-evidence.md) records engineering rationale, pinned
+artifacts, tests, review findings and human decisions without private prompt history.
+
+```bash
+python -m booking_simulator.evidence --evidence examples/evidence/valid.json --repository .
+```
+
+## Combined bootcamp rehearsal
+
+[Combined submission and evaluator contract](docs/combined-submission.md) joins
+booking predictions, incident/challenge impact and pinned SDLC evidence while
+keeping correctness execution and independent process review in `engineering-evals`.
+
+```bash
+python -m booking_simulator.smoke
+```

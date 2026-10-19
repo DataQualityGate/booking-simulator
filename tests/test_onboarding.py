@@ -18,7 +18,42 @@ def active_workflow(workflow):
     parser or a substitute for reviewing executable workflow changes. Alternate
     permission/timeout layouts must fail these checks until explicitly supported.
     """
-    return '\n'.join(line.split('#', 1)[0].rstrip() for line in workflow.splitlines()) + '\n'
+    active = []
+    block_indent = None
+    for line in workflow.splitlines():
+        indent = len(line) - len(line.lstrip())
+        if block_indent is not None:
+            if not line.strip() or indent > block_indent:
+                active.append(line)  # GitHub interpolates expressions even in shell comments.
+                continue
+            block_indent = None
+        quote = None
+        index = 0
+        while index < len(line):
+            char = line[index]
+            if quote == '"' and char == '\\':
+                index += 2
+                continue
+            if quote == "'" and line[index:index + 2] == "''":
+                index += 2
+                continue
+            if quote:
+                if char == quote:
+                    quote = None
+            elif char in ("'", '"'):
+                quote = char
+            elif char == '#' and (index == 0 or line[index - 1].isspace()):
+                line = line[:index]
+                break
+            index += 1
+        if quote:
+            raise AssertionError('Multiline quoted scalars require explicit policy review')
+        line = line.rstrip()
+        active.append(line)
+        if re.search(r':\s*[|>][-+0-9]*\s*$', line):
+            block_indent = indent
+    return '\n'.join(active) + '\n'
+
 
 
 class OnboardingTests(unittest.TestCase):
@@ -50,7 +85,7 @@ class OnboardingTests(unittest.TestCase):
 
     def test_local_documentation_links(self):
         """Keep the onboarding entry points and contract links navigable offline."""
-        for name in ('README.md', 'CONTRIBUTING.md', 'docs/student-guide.md', 'docs/sandbox-security.md'):
+        for name in ('README.md', 'CONTRIBUTING.md', 'docs/student-guide.md', 'docs/sandbox-security.md', 'docs/bootcamp/combined-case-plan.md', 'docs/combined-submission.md'):
             path = ROOT / name
             for target in re.findall(r'\[[^\]]+\]\(([^)]+)\)', path.read_text()):
                 if '://' in target or target.startswith('#'):
@@ -116,6 +151,18 @@ class OnboardingTests(unittest.TestCase):
                 self.assertIsNone(top_level, 'Duplicate top-level permissions')
                 top_level = entries
         self.assertEqual(top_level, {'contents': 'read'})
+        section = re.search(r'(?ms)^jobs:\n(.*?)(?=^[^\s].*:[ \t]*$|\Z)', active)
+        self.assertIsNotNone(section)
+        jobs = re.findall(r'(?ms)^  [A-Za-z0-9_-]+:\n(.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)', section.group(1))
+        self.assertGreater(len(jobs), 0)
+        for job in jobs:
+            headers = re.findall(r'(?m)^    permissions:.*$', job)
+            self.assertLessEqual(len(headers), 1, 'Duplicate job permission mapping')
+            override = re.search(r'(?ms)^    permissions:\n(.*?)(?=^    \S|\Z)', job)
+            effective = top_level if override is None else dict(re.findall(
+                r'(?m)^      ([a-z][a-z-]*):[ \t]*(read|none)[ \t]*$', override.group(1)))
+            if re.search(r'(?m)^\s*(?:- )?uses:\s*[\'\"]?actions/checkout@', job):
+                self.assertEqual(effective.get('contents'), 'read', 'Checkout jobs need effective contents: read')
 
     def test_active_job_timeouts(self):
         """A comment, step setting or another bounded job cannot hide an unbounded job."""
@@ -143,12 +190,66 @@ class OnboardingTests(unittest.TestCase):
         self.assert_permissions_read_only(workflow + '# permissions: write-all\n#   issues: write\n')
         self.assert_permissions_read_only(workflow.replace('    timeout-minutes: 5', '    permissions:\n      contents: read\n      issues: none\n    timeout-minutes: 5'))
 
-    def test_public_ci_has_no_privileged_execution(self):
-        """Guard the specific public workflow against credential/privilege regressions."""
-        workflow = active_workflow((ROOT / '.github/workflows/ci.yml').read_text())
+    def assert_public_ci_policy(self, text):
+        """Check the supported public workflow layout without executing fixture commands."""
+        workflow = active_workflow(text)
         self.assertNotIn('pull_request_target', workflow)
         self.assertNotRegex(workflow, r'(?i)\bsecrets\b')
         self.assertNotIn('self-hosted', workflow)
         self.assert_checkout_credentials_disabled(workflow)
         self.assert_job_timeouts(workflow)
         self.assert_permissions_read_only(workflow)
+
+    def test_public_ci_has_no_privileged_execution(self):
+        """Guard the checked-in public workflow against privilege regressions."""
+        self.assert_public_ci_policy((ROOT / '.github/workflows/ci.yml').read_text())
+
+    def test_quoted_hashes_and_script_expressions_stay_visible(self):
+        """YAML/shell quoting and literal blocks must not conceal a secrets expression."""
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        lines = ["        run: 'echo \"#${{ secrets.TOKEN }}\"'",
+                 '        run: "echo \\"#${{ secrets.TOKEN }}\\""',
+                 "        run: 'echo ''#${{ secrets.TOKEN }}'''",
+                 '        run: echo prefix#${{ secrets.TOKEN }}',
+                 '        run: |\n          # ${{ secrets.TOKEN }}']
+        for line in lines:
+            text = workflow + '      - name: Synthetic prohibited expression\n' + line + '\n'
+            self.assertIn('${{ secrets.TOKEN }}', active_workflow(text))
+            with self.assertRaises(AssertionError):
+                self.assert_public_ci_policy(text)
+        self.assert_public_ci_policy(workflow + '# ${{ secrets.TOKEN }}\n')
+
+    def test_checkout_requires_effective_job_contents_permission(self):
+        """Job overrides replace workflow grants rather than merging with them."""
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+        for entries in ('      issues: none', '      contents: none', '      issues: read'):
+            changed = workflow.replace('    timeout-minutes: 5', '    permissions:\n' + entries + '\n    timeout-minutes: 5')
+            with self.assertRaises(AssertionError):
+                self.assert_permissions_read_only(changed)
+        # A separate job without checkout does not need repository read access.
+        self.assert_permissions_read_only(workflow + '  reporting:\n    permissions:\n      issues: none\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    steps:\n      - run: echo synthetic\n')
+
+    def test_documented_combined_contract_rehearsal(self):
+        """Run the guide's public rehearsal commands without a student solution or keys."""
+        guide = (ROOT / 'docs/student-guide.md').read_text()
+        section = guide.split('## Rehearse the combined contracts', 1)[1]
+        block = re.search(r'```bash\n(.*?)```', section, re.DOTALL).group(1)
+        commands = [shlex.split(line) for line in block.splitlines() if line.strip()]
+        self.assertEqual(len(commands), 3)
+        for args in commands:
+            self.assertEqual(args[0], 'python')
+            args[0] = sys.executable
+            try:
+                result = subprocess.run(args, cwd=ROOT, capture_output=True, text=True, timeout=30)
+            except subprocess.TimeoutExpired:
+                self.fail('Documented combined rehearsal timed out')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            value = json.loads(result.stdout)
+            if args[2] == 'booking_simulator.smoke':
+                self.assertTrue(value['valid'])
+                self.assertFalse(value['student_correctness_demonstrated'])
+            elif args[2] == 'booking_simulator.challenges':
+                self.assertEqual(value['challenge_id'], 'supplier-recovery-v1')
+            else:
+                self.assertTrue(value['valid'])
+                self.assertFalse(value['correctness_demonstrated'])
