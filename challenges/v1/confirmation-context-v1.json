@@ -1,0 +1,239 @@
+{
+  "baseline": "BookingConfirmed attributes contain synthetic and region only.",
+  "baseline_fixtures": [
+    {
+      "expected": {
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierConfirmed",
+          "BookingConfirmed",
+          "NotificationSent"
+        ],
+        "truth": {
+          "affected_services": [
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": null,
+          "scenario": "success",
+          "status": "confirmed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {},
+        "seed": 1
+      }
+    }
+  ],
+  "challenge_id": "confirmation-context-v1",
+  "fixture_contract": "Each fixture calls generate with input seed/count and keyword options. Compare the full ordered event_types and exact truth row; event_attributes are required subsets on every matching event. Preserve all unspecified baseline fields and event envelopes. Regression fixtures without options must remain byte-identical. Fixtures are public acceptance examples, not held-out grading cases.",
+  "impact": {
+    "affected_services": [],
+    "case_id": "confirmation-context-v1",
+    "possibly_affected_services": [
+      "audit"
+    ],
+    "unaffected_services": [
+      "booking",
+      "payment",
+      "supplier",
+      "notification",
+      "analytics"
+    ]
+  },
+  "impact_rationale": "Additive metadata does not change business outcomes; notification and analytics accept unknown attributes. Audit compatibility is unknown.",
+  "post_change_fixtures": [
+    {
+      "expected": {
+        "event_attributes": {
+          "BookingConfirmed": {
+            "confirmation_channel": "email"
+          }
+        },
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierConfirmed",
+          "BookingConfirmed",
+          "NotificationSent"
+        ],
+        "truth": {
+          "affected_services": [
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": null,
+          "scenario": "success",
+          "status": "confirmed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {
+          "include_confirmation_context": true
+        },
+        "seed": 1
+      }
+    },
+    {
+      "expected": {
+        "event_attributes": {
+          "BookingConfirmed": {
+            "confirmation_channel": "email"
+          }
+        },
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierConfirmed",
+          "BookingConfirmed",
+          "SupplierConfirmed",
+          "NotificationSent"
+        ],
+        "truth": {
+          "affected_services": [
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": null,
+          "scenario": "message_delay",
+          "status": "confirmed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {
+          "include_confirmation_context": true
+        },
+        "seed": 2
+      }
+    },
+    {
+      "expected": {
+        "event_attributes": {
+          "BookingConfirmed": {
+            "confirmation_channel": "email"
+          }
+        },
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierTimeout",
+          "SupplierConfirmed",
+          "BookingConfirmed",
+          "NotificationSent"
+        ],
+        "truth": {
+          "affected_services": [
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": null,
+          "scenario": "supplier_timeout",
+          "status": "confirmed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {
+          "include_confirmation_context": true,
+          "recover_supplier_timeout": true
+        },
+        "seed": 0
+      }
+    }
+  ],
+  "regression_fixtures": [
+    {
+      "expected": {
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierConfirmed",
+          "BookingConfirmed",
+          "NotificationSent"
+        ],
+        "truth": {
+          "affected_services": [
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": null,
+          "scenario": "success",
+          "status": "confirmed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {},
+        "seed": 1
+      }
+    },
+    {
+      "expected": {
+        "event_types": [
+          "BookingRequested",
+          "PaymentAuthorized",
+          "ReservationRequested",
+          "SupplierTimeout",
+          "BookingPending"
+        ],
+        "truth": {
+          "affected_services": [
+            "supplier",
+            "booking",
+            "notification"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": "supplier",
+          "scenario": "supplier_timeout",
+          "status": "pending"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {
+          "include_confirmation_context": true
+        },
+        "seed": 0
+      }
+    },
+    {
+      "expected": {
+        "event_types": [
+          "BookingRequested",
+          "PaymentDeclined",
+          "BookingFailed"
+        ],
+        "truth": {
+          "affected_services": [
+            "payment",
+            "booking"
+          ],
+          "booking_id": "BOOK-000001",
+          "root_cause_service": "payment",
+          "scenario": "payment_failed",
+          "status": "failed"
+        }
+      },
+      "input": {
+        "count": 1,
+        "options": {
+          "include_confirmation_context": true
+        },
+        "seed": 19
+      }
+    }
+  ],
+  "requested_change": "Add keyword include_confirmation_context=False. When true, add confirmation_channel=email only to BookingConfirmed attributes, including delayed delivery scenarios. Keep schema_version=1.0, all IDs, timestamps, existing attributes and truth unchanged; do not mutate other event types. Consumers accept unknown attributes. Both new options must be independently composable; defaults preserve byte-identical output.",
+  "schema_version": "1.0",
+  "target": "booking_simulator.cli.generate(seed, count, *, include_confirmation_context=False)",
+  "title": "Evolve confirmation events compatibly"
+}

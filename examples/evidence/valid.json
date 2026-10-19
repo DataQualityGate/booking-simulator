@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "challenge_id": "supplier-recovery-v1",
+  "commit_sha": "af6c6d75f954fe8ad5fcde42bddc3463091691ce",
+  "rationale": "Synthetic example of evidence shape; this is not a completed challenge.",
+  "intent": "intent.md",
+  "spec": "docs/event-contract.md",
+  "tests": [
+    {
+      "id": "baseline",
+      "command": "python -m unittest discover -s tests -v",
+      "result": "not_run",
+      "artifact": "tests/test_simulator.py"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "review-1",
+      "reviewer": "synthetic-independent-reviewer",
+      "artifact": "CONTRIBUTING.md",
+      "findings": [
+        {
+          "id": "F1",
+          "severity": "minor",
+          "status": "accepted",
+          "rationale": "Public examples do not demonstrate challenge correctness."
+        }
+      ]
+    }
+  ],
+  "human_decisions": [
+    {
+      "id": "decision-1",
+      "decision": "accept_risk",
+      "rationale": "Accept only as a format example; real submissions need observed results.",
+      "finding_ids": [
+        "F1"
+      ]
+    }
+  ],
+  "limitations": [
+    "No student solution, execution or correctness claim is supplied by this fixture."
+  ]
+}
