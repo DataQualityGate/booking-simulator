@@ -113,3 +113,5 @@ keeping correctness execution and independent process review in `engineering-eva
 ```bash
 python -m booking_simulator.smoke
 ```
+
+The [assessment contract](docs/assessment.md) describes public practice, protected grading and evidence review.

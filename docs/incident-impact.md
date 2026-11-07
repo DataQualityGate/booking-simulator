@@ -1,5 +1,7 @@
 # Incident and impact exercises (suite 1.0)
 
+**Practice only.** See the [assessment contract](assessment.md) for scored submissions.
+
 ```bash
 python -m booking_simulator --seed 42 --count 1000 --incidents --output build
 python -m booking_simulator.incidents --predictions submission.jsonl --truth build/reference/impact-truth.jsonl

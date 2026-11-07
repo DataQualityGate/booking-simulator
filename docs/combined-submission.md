@@ -1,5 +1,7 @@
 # Combined SDLC and impact submission v1
 
+**Practice only.** See the [assessment contract](assessment.md) for scored submissions.
+
 This extends the existing booking/incident exercise and preserves its public
 contracts. Booking Simulator owns public synthetic challenges and handoff formats;
 `engineering-evals` owns execution, protected cases, grading and reporting. The

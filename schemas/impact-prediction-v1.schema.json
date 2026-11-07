@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bootcamp impact prediction v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["case_id", "affected_services", "possibly_affected_services"],
+  "properties": {
+    "case_id": {"type": "string", "minLength": 1},
+    "affected_services": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "possibly_affected_services": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    }
+  }
+}
