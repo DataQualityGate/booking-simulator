@@ -1,5 +1,7 @@
 # SDLC change challenges v1
 
+**Practice only.** See the [assessment contract](assessment.md) for scored submissions.
+
 The public catalog in `challenges/v1/` adds two independent opt-in change requests.
 It does not change the generator or ship the student solution. A student implements
 the specified keyword option in `booking_simulator.cli.generate` in their fork.
