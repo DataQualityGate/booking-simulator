@@ -43,7 +43,10 @@ are rejected. A missing prediction counts as unanswered and cannot earn
 credit for correctly excluding services.
 
 Definite-impact precision and recall penalize false positives and missed
-affected services. F1 combines both. The private report also tracks uncertain
+affected services. Counts are pooled across assigned cases before computing precision, recall
+and F1. A metric is JSON `null` when its denominator is zero. This means
+precision is undefined with no definite predictions, recall with no definite
+ground truth, and F1 when both sets are empty. The private report also tracks uncertain
 and unaffected labels, including overconfidence (possible labeled definite)
 and missed uncertainty. Root-cause explanations can be reviewed separately.
 Feedback is aggregate and excludes expected labels and private case diagnostics.
